@@ -69,11 +69,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     const start = selectionStart < day.date ? selectionStart : day.date;
     const end = selectionStart < day.date ? day.date : selectionStart;
     
+    // Create a new DateRange object with proper dates
+    const range: DateRange = {
+      startDate: new Date(start),
+      endDate: new Date(end)
+    };
+    
     setSelectionStart(null);
     setPreviewRange(null);
     
     // Complete the selection without validation
-    onDateRangeSelect({ startDate: start, endDate: end });
+    onDateRangeSelect(range);
   };
   
   // Handle mouse enter (hover) on a day
@@ -85,7 +91,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       const start = selectionStart < day.date ? selectionStart : day.date;
       const end = selectionStart < day.date ? day.date : selectionStart;
       
-      setPreviewRange({ startDate: start, endDate: end });
+      // Create a new preview range with proper dates to avoid circular reference
+      setPreviewRange({
+        startDate: new Date(start),
+        endDate: new Date(end)
+      });
     }
   };
   

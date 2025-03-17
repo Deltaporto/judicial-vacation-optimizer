@@ -43,7 +43,10 @@ const Index = () => {
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
     // For a single date, set the range to just that day
-    setSelectedRange({ startDate: date, endDate: date });
+    setSelectedRange({ 
+      startDate: new Date(date), 
+      endDate: new Date(date) 
+    });
     // This is just the start of a selection, not a complete range yet
     setIsRangeComplete(false);
   };
@@ -51,14 +54,21 @@ const Index = () => {
   // Handle date range selection
   const handleDateRangeSelect = (range: DateRange) => {
     console.log("Range selected:", range);
-    setSelectedRange(range);
+    // Always create a new range object with proper dates to avoid circular references
+    setSelectedRange({
+      startDate: new Date(range.startDate),
+      endDate: new Date(range.endDate)
+    });
     // Only consider it a complete range if start and end are different
     setIsRangeComplete(range.startDate.getTime() !== range.endDate.getTime());
   };
   
   // Handle recommendation selection
   const handleRecommendationSelect = (dateRange: DateRange) => {
-    setSelectedRange(dateRange);
+    setSelectedRange({
+      startDate: new Date(dateRange.startDate),
+      endDate: new Date(dateRange.endDate)
+    });
     setIsRangeComplete(true);
     toast({
       title: "Recomendação Aplicada",
