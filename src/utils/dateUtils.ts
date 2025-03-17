@@ -127,9 +127,15 @@ export const getCalendarDays = (
     let isInSelection = false;
     
     if (selectedRange) {
-      isSelectionStart = isSameDay(date, selectedRange.startDate);
-      isSelectionEnd = isSameDay(date, selectedRange.endDate);
-      isInSelection = date >= selectedRange.startDate && date <= selectedRange.endDate;
+      const start = new Date(selectedRange.startDate);
+      start.setHours(0, 0, 0, 0);
+      
+      const end = new Date(selectedRange.endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      isSelectionStart = isSameDay(date, start);
+      isSelectionEnd = isSameDay(date, end);
+      isInSelection = date >= start && date <= end;
       isSelected = isSelectionStart || isSelectionEnd;
     }
     

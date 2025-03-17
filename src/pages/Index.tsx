@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Layout/Header';
 import Footer from '@/components/Layout/Footer';
@@ -36,11 +35,13 @@ const Index = () => {
   // Handle single date selection
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
+    // For a single date, set the range to just that day
     setSelectedRange({ startDate: date, endDate: date });
   };
   
   // Handle date range selection
   const handleDateRangeSelect = (range: DateRange) => {
+    console.log("Range selected:", range);
     setSelectedRange(range);
   };
   

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { format, getMonth, getYear, addMonths, subMonths, isSameMonth } from 'date-fns';
+import { format, getMonth, getYear, addMonths, subMonths, isSameMonth, isSameDay, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarDay, DateRange, Holiday, ViewMode } from '@/types';
 import { getCalendarDays } from '@/utils/dateUtils';
@@ -12,6 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip';
+import { isValidVacationPeriod } from '@/utils/dateUtils';
 
 interface CalendarViewProps {
   selectedRange: DateRange | null;
@@ -31,47 +32,64 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
   const [selectionStart, setSelectionStart] = useState<Date | null>(null);
   const [hoverDate, setHoverDate] = useState<Date | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [previewRange, setPreviewRange] = useState<DateRange | null>(null);
   
-  // Update calendar days when month changes
+  // Update calendar days when month changes or selection/preview changes
   useEffect(() => {
-    setCalendarDays(getCalendarDays(currentMonth, selectedRange));
-  }, [currentMonth, selectedRange]);
+    // Calculate actual range to highlight (either confirmed selection or preview)
+    const effectiveRange = previewRange || selectedRange;
+    setCalendarDays(getCalendarDays(currentMonth, effectiveRange));
+  }, [currentMonth, selectedRange, previewRange]);
   
   // Navigation functions
   const goToPreviousMonth = () => setCurrentMonth(prevMonth => subMonths(prevMonth, 1));
   const goToNextMonth = () => setCurrentMonth(prevMonth => addMonths(prevMonth, 1));
   
-  // Handle mouse events for date selection
-  const handleMouseDown = (day: CalendarDay) => {
+  // Handle click on a day - either start selection or complete it
+  const handleDayClick = (day: CalendarDay) => {
     if (!day.isCurrentMonth) return;
     
-    setSelectionStart(day.date);
-    setIsDragging(true);
-    onDateSelect(day.date);
-  };
-  
-  const handleMouseEnter = (day: CalendarDay) => {
-    setHoverDate(day.date);
-    
-    if (isDragging && selectionStart && day.isCurrentMonth) {
-      const start = selectionStart < day.date ? selectionStart : day.date;
-      const end = selectionStart < day.date ? day.date : selectionStart;
-      
-      onDateRangeSelect({ startDate: start, endDate: end });
+    // If we already have a selection and click inside it, clear selection
+    if (selectedRange && day.isInSelection) {
+      setSelectionStart(null);
+      setPreviewRange(null);
+      onDateRangeSelect({ startDate: day.date, endDate: day.date });
+      return;
     }
-  };
-  
-  const handleMouseUp = (day: CalendarDay) => {
-    if (!day.isCurrentMonth || !selectionStart) return;
     
-    setIsDragging(false);
+    // If we're starting a new selection
+    if (!selectionStart) {
+      setSelectionStart(day.date);
+      onDateSelect(day.date);
+      return;
+    }
     
+    // If we're completing a selection
     const start = selectionStart < day.date ? selectionStart : day.date;
     const end = selectionStart < day.date ? day.date : selectionStart;
     
-    onDateRangeSelect({ startDate: start, endDate: end });
     setSelectionStart(null);
+    setPreviewRange(null);
+    onDateRangeSelect({ startDate: start, endDate: end });
+  };
+  
+  // Handle mouse enter (hover) on a day
+  const handleDayHover = (day: CalendarDay) => {
+    setHoverDate(day.date);
+    
+    // Only update preview if we have a selection start point
+    if (selectionStart && day.isCurrentMonth) {
+      const start = selectionStart < day.date ? selectionStart : day.date;
+      const end = selectionStart < day.date ? day.date : selectionStart;
+      
+      setPreviewRange({ startDate: start, endDate: end });
+    }
+  };
+  
+  // Handle mouse leave from calendar
+  const handleCalendarMouseLeave = () => {
+    setHoverDate(null);
+    setPreviewRange(null);
   };
   
   // Generate holiday tooltip content
@@ -88,92 +106,105 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     );
   };
   
-  // Render month view or year view
-  const renderMonthView = () => (
-    <div 
-      className="grid grid-cols-7 gap-1" 
-      onMouseLeave={() => {
-        setIsDragging(false);
-        setHoverDate(null);
-      }}
-    >
-      {/* Weekday headers */}
-      {WEEKDAYS.map(day => (
-        <div 
-          key={day} 
-          className="text-xs font-medium text-gray-500 h-8 flex items-center justify-center"
-        >
-          {day}
-        </div>
-      ))}
-      
-      {/* Calendar days */}
-      {calendarDays.map((day, index) => {
-        let className = "calendar-day relative cursor-pointer transition-all duration-200 text-sm";
-        
-        // Base styling
-        if (!day.isCurrentMonth) {
-          className += " opacity-30";
-        }
-        
-        if (day.isToday) {
-          className += " border border-primary";
-        }
-        
-        // Special day styling
-        if (day.holiday) {
-          if (day.holiday.type === 'national') className += " calendar-day-holiday";
-          if (day.holiday.type === 'judicial') className += " bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200";
-          if (day.holiday.type === 'recess') className += " calendar-day-recess";
-        } else if (day.isWeekend) {
-          className += " calendar-day-weekend";
-        }
-        
-        // Selection styling
-        if (day.isInSelection) {
-          className += " calendar-day-selected";
-        }
-        
-        // Hover effect during selection
-        if (selectionStart && hoverDate) {
-          const isInHoverRange = 
-            (day.date >= selectionStart && day.date <= hoverDate) || 
-            (day.date <= selectionStart && day.date >= hoverDate);
-          
-          if (isInHoverRange && isDragging) {
-            className += " bg-primary/20";
-          }
-        }
-        
-        return (
-          <div
-            key={`day-${index}`}
-            className={className}
-            onMouseDown={() => handleMouseDown(day)}
-            onMouseEnter={() => handleMouseEnter(day)}
-            onMouseUp={() => handleMouseUp(day)}
+  // Check if a range is valid (minimum 5 days)
+  const isRangeValid = (range: DateRange | null): boolean => {
+    if (!range) return true;
+    return isValidVacationPeriod(range.startDate, range.endDate).isValid;
+  };
+  
+  // Render month view
+  const renderMonthView = () => {
+    // Check if preview or selected range is valid
+    const effectiveRange = previewRange || selectedRange;
+    const isCurrentRangeValid = isRangeValid(effectiveRange);
+    
+    return (
+      <div 
+        className="grid grid-cols-7 gap-1" 
+        onMouseLeave={handleCalendarMouseLeave}
+      >
+        {/* Weekday headers */}
+        {WEEKDAYS.map(day => (
+          <div 
+            key={day} 
+            className="text-xs font-medium text-gray-500 h-8 flex items-center justify-center"
           >
-            <div className="absolute top-1 right-1 z-10">
-              {day.holiday && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      {renderHolidayTooltip(day.holiday)}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
-            
-            <span>{format(day.date, 'd')}</span>
+            {day}
           </div>
-        );
-      })}
-    </div>
-  );
+        ))}
+        
+        {/* Calendar days */}
+        {calendarDays.map((day, index) => {
+          // Base styling
+          let className = "h-10 w-full flex items-center justify-center relative rounded-md transition-all duration-200 text-sm";
+          
+          if (!day.isCurrentMonth) {
+            className += " text-gray-300 pointer-events-none";
+          } else {
+            className += " cursor-pointer hover:bg-gray-100";
+          }
+          
+          if (day.isToday) {
+            className += " border border-primary";
+          }
+          
+          // Special day styling
+          if (day.holiday) {
+            if (day.holiday.type === 'national') className += " text-red-600";
+            if (day.holiday.type === 'judicial') className += " text-amber-600";
+            if (day.holiday.type === 'recess') className += " text-purple-600";
+          } else if (day.isWeekend) {
+            className += " text-blue-500";
+          }
+          
+          // Selection styling
+          if (day.isInSelection) {
+            if (!isCurrentRangeValid) {
+              // Invalid selection styling
+              className += " bg-red-100 text-red-800";
+            } else {
+              // Valid selection styling
+              className += " bg-blue-100";
+              
+              // Special styling for start and end
+              if (day.isSelectionStart) {
+                className += " bg-blue-500 text-white rounded-l-md";
+              }
+              if (day.isSelectionEnd) {
+                className += " bg-blue-500 text-white rounded-r-md";
+              }
+            }
+          }
+          
+          return (
+            <div
+              key={`day-${index}`}
+              className={className}
+              onClick={() => handleDayClick(day)}
+              onMouseEnter={() => handleDayHover(day)}
+            >
+              <div className="absolute top-1 right-1 z-10">
+                {day.holiday && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        {renderHolidayTooltip(day.holiday)}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+              
+              <span>{format(day.date, 'd')}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
   
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-scale-in">
@@ -210,6 +241,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       <div className="p-4">
         {viewMode === 'month' ? renderMonthView() : null}
       </div>
+      
+      {/* Selection status */}
+      {selectionStart && (
+        <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 text-sm text-blue-700">
+          Início selecionado: {format(selectionStart, 'dd/MM/yyyy')}. Clique em outro dia para completar a seleção.
+        </div>
+      )}
       
       {/* Legend */}
       <div className="p-4 border-t border-gray-100 bg-gray-50 flex flex-wrap gap-x-4 gap-y-2 text-xs">
