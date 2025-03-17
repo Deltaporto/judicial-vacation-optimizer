@@ -60,6 +60,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     // If we're starting a new selection
     if (!selectionStart) {
       setSelectionStart(day.date);
+      // Just mark the start date without validation at this point
       onDateSelect(day.date);
       return;
     }
@@ -70,6 +71,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     
     setSelectionStart(null);
     setPreviewRange(null);
+    
+    // Complete the selection without validation
     onDateRangeSelect({ startDate: start, endDate: end });
   };
   
@@ -159,9 +162,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           
           // Selection styling
           if (day.isInSelection) {
-            if (!isCurrentRangeValid) {
-              // Invalid selection styling
-              className += " bg-red-100 text-red-800";
+            if (effectiveRange && !isCurrentRangeValid) {
+              // Invalid selection styling - only apply to confirmed selections, not previews
+              if (!previewRange || (selectionStart && !day.isSelectionStart)) {
+                className += " bg-red-100 text-red-800";
+              } else {
+                // For previews that are invalid, use a softer warning style
+                className += " bg-blue-100";
+              }
             } else {
               // Valid selection styling
               className += " bg-blue-100";

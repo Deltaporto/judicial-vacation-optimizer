@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Layout/Header';
 import Footer from '@/components/Layout/Footer';
@@ -12,15 +13,20 @@ const Index = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedRange, setSelectedRange] = useState<DateRange | null>(null);
   const [vacationPeriod, setVacationPeriod] = useState<VacationPeriod | null>(null);
+  const [isRangeComplete, setIsRangeComplete] = useState<boolean>(false);
   
   // Update vacation period when date range changes
   useEffect(() => {
     if (selectedRange) {
+      // Check if this is a complete range (not just a single date)
+      const isComplete = selectedRange.startDate.getTime() !== selectedRange.endDate.getTime();
+      setIsRangeComplete(isComplete);
+      
       const periodDetails = getVacationPeriodDetails(selectedRange.startDate, selectedRange.endDate);
       setVacationPeriod(periodDetails);
       
-      // Show toast for invalid periods
-      if (!periodDetails.isValid && periodDetails.invalidReason) {
+      // Only show validation toast for complete ranges (when both start and end dates are selected)
+      if (isComplete && !periodDetails.isValid && periodDetails.invalidReason) {
         toast({
           title: "Período Inválido",
           description: periodDetails.invalidReason,
@@ -29,6 +35,7 @@ const Index = () => {
       }
     } else {
       setVacationPeriod(null);
+      setIsRangeComplete(false);
     }
   }, [selectedRange]);
   
@@ -37,17 +44,22 @@ const Index = () => {
     setSelectedDate(date);
     // For a single date, set the range to just that day
     setSelectedRange({ startDate: date, endDate: date });
+    // This is just the start of a selection, not a complete range yet
+    setIsRangeComplete(false);
   };
   
   // Handle date range selection
   const handleDateRangeSelect = (range: DateRange) => {
     console.log("Range selected:", range);
     setSelectedRange(range);
+    // Only consider it a complete range if start and end are different
+    setIsRangeComplete(range.startDate.getTime() !== range.endDate.getTime());
   };
   
   // Handle recommendation selection
   const handleRecommendationSelect = (dateRange: DateRange) => {
     setSelectedRange(dateRange);
+    setIsRangeComplete(true);
     toast({
       title: "Recomendação Aplicada",
       description: "O período de férias foi atualizado conforme a recomendação.",
@@ -81,9 +93,9 @@ const Index = () => {
           
           {/* Right column - Analysis & Recommendations */}
           <div className="lg:col-span-3 space-y-6">
-            <EfficiencyCalculator vacationPeriod={vacationPeriod} />
+            <EfficiencyCalculator vacationPeriod={isRangeComplete ? vacationPeriod : null} />
             <VacationRecommendations 
-              vacationPeriod={vacationPeriod}
+              vacationPeriod={isRangeComplete ? vacationPeriod : null}
               onRecommendationSelect={handleRecommendationSelect}
             />
           </div>
