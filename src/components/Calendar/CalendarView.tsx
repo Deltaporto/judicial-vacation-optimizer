@@ -53,26 +53,29 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     if (selectedRange && day.isInSelection) {
       setSelectionStart(null);
       setPreviewRange(null);
-      onDateRangeSelect({ startDate: day.date, endDate: day.date });
+      // Pass a new DateRange object to avoid circular reference
+      const newDate = new Date(day.date);
+      onDateRangeSelect({ startDate: newDate, endDate: newDate });
       return;
     }
     
     // If we're starting a new selection
     if (!selectionStart) {
-      setSelectionStart(day.date);
+      const newStartDate = new Date(day.date);
+      setSelectionStart(newStartDate);
       // Just mark the start date without validation at this point
-      onDateSelect(day.date);
+      onDateSelect(newStartDate);
       return;
     }
     
     // If we're completing a selection
-    const start = selectionStart < day.date ? selectionStart : day.date;
-    const end = selectionStart < day.date ? day.date : selectionStart;
+    const start = selectionStart < day.date ? new Date(selectionStart) : new Date(day.date);
+    const end = selectionStart < day.date ? new Date(day.date) : new Date(selectionStart);
     
     // Create a new DateRange object with proper dates
     const range: DateRange = {
-      startDate: new Date(start),
-      endDate: new Date(end)
+      startDate: start,
+      endDate: end
     };
     
     setSelectionStart(null);
@@ -88,13 +91,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     
     // Only update preview if we have a selection start point
     if (selectionStart && day.isCurrentMonth) {
-      const start = selectionStart < day.date ? selectionStart : day.date;
-      const end = selectionStart < day.date ? day.date : selectionStart;
+      const start = selectionStart < day.date ? new Date(selectionStart) : new Date(day.date);
+      const end = selectionStart < day.date ? new Date(day.date) : new Date(selectionStart);
       
       // Create a new preview range with proper dates to avoid circular reference
       setPreviewRange({
-        startDate: new Date(start),
-        endDate: new Date(end)
+        startDate: start,
+        endDate: end
       });
     }
   };
@@ -172,14 +175,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           
           // Selection styling
           if (day.isInSelection) {
-            if (effectiveRange && !isCurrentRangeValid) {
+            if (effectiveRange && !isCurrentRangeValid && previewRange === null) {
               // Invalid selection styling - only apply to confirmed selections, not previews
-              if (!previewRange || (selectionStart && !day.isSelectionStart)) {
-                className += " bg-red-100 text-red-800";
-              } else {
-                // For previews that are invalid, use a softer warning style
-                className += " bg-blue-100";
-              }
+              className += " bg-red-100 text-red-800";
             } else {
               // Valid selection styling
               className += " bg-blue-100";

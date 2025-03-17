@@ -22,16 +22,22 @@ const Index = () => {
       const isComplete = selectedRange.startDate.getTime() !== selectedRange.endDate.getTime();
       setIsRangeComplete(isComplete);
       
-      const periodDetails = getVacationPeriodDetails(selectedRange.startDate, selectedRange.endDate);
-      setVacationPeriod(periodDetails);
-      
-      // Only show validation toast for complete ranges (when both start and end dates are selected)
-      if (isComplete && !periodDetails.isValid && periodDetails.invalidReason) {
-        toast({
-          title: "Período Inválido",
-          description: periodDetails.invalidReason,
-          variant: "destructive",
-        });
+      // Only calculate and show validation for complete ranges
+      if (isComplete) {
+        const periodDetails = getVacationPeriodDetails(selectedRange.startDate, selectedRange.endDate);
+        setVacationPeriod(periodDetails);
+        
+        // Only show validation toast for complete ranges
+        if (!periodDetails.isValid && periodDetails.invalidReason) {
+          toast({
+            title: "Período Inválido",
+            description: periodDetails.invalidReason,
+            variant: "destructive",
+          });
+        }
+      } else {
+        // For incomplete ranges (single day selections), don't validate yet
+        setVacationPeriod(null);
       }
     } else {
       setVacationPeriod(null);
@@ -41,12 +47,18 @@ const Index = () => {
   
   // Handle single date selection
   const handleDateSelect = (date: Date) => {
+    console.log("Date selected:", date);
     setSelectedDate(date);
+    
+    // Always create a new date object to avoid reference issues
+    const newDate = new Date(date);
+    
     // For a single date, set the range to just that day
     setSelectedRange({ 
-      startDate: new Date(date), 
-      endDate: new Date(date) 
+      startDate: newDate, 
+      endDate: newDate 
     });
+    
     // This is just the start of a selection, not a complete range yet
     setIsRangeComplete(false);
   };
@@ -54,22 +66,30 @@ const Index = () => {
   // Handle date range selection
   const handleDateRangeSelect = (range: DateRange) => {
     console.log("Range selected:", range);
+    
     // Always create a new range object with proper dates to avoid circular references
-    setSelectedRange({
+    const newRange = {
       startDate: new Date(range.startDate),
       endDate: new Date(range.endDate)
-    });
+    };
+    
+    setSelectedRange(newRange);
+    
     // Only consider it a complete range if start and end are different
-    setIsRangeComplete(range.startDate.getTime() !== range.endDate.getTime());
+    const isComplete = newRange.startDate.getTime() !== newRange.endDate.getTime();
+    setIsRangeComplete(isComplete);
   };
   
   // Handle recommendation selection
   const handleRecommendationSelect = (dateRange: DateRange) => {
-    setSelectedRange({
+    const newRange = {
       startDate: new Date(dateRange.startDate),
       endDate: new Date(dateRange.endDate)
-    });
+    };
+    
+    setSelectedRange(newRange);
     setIsRangeComplete(true);
+    
     toast({
       title: "Recomendação Aplicada",
       description: "O período de férias foi atualizado conforme a recomendação.",
