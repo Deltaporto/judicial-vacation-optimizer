@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { VacationPeriod, DateRange, Recommendation } from '@/types';
 import { generateRecommendations, generateSuperOptimizations } from '@/utils/efficiencyUtils';
@@ -22,6 +23,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface VacationRecommendationsProps {
   vacationPeriod: VacationPeriod | null;
@@ -36,6 +39,7 @@ const VacationRecommendations: React.FC<VacationRecommendationsProps> = ({
   const [superOptimizations, setSuperOptimizations] = useState<Recommendation[]>([]);
   const [showSuperOptimizations, setShowSuperOptimizations] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>("all");
+  const isMobile = useIsMobile();
   
   // Generate recommendations when vacation period changes
   useEffect(() => {
@@ -205,19 +209,44 @@ const VacationRecommendations: React.FC<VacationRecommendationsProps> = ({
   );
   
   // Filter tabs component
-  const FilterTabs = () => (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-      <TabsList className="w-full grid grid-cols-3 sm:grid-cols-7">
-        <TabsTrigger value="all">Todas</TabsTrigger>
-        <TabsTrigger value="extend">Ajustar</TabsTrigger>
-        <TabsTrigger value="shift">Deslocar</TabsTrigger>
-        <TabsTrigger value="optimize">Otimizar</TabsTrigger>
-        <TabsTrigger value="bridge">Pontes</TabsTrigger>
-        <TabsTrigger value="fraction">Fracionar</TabsTrigger>
-        <TabsTrigger value="recess">Recessos</TabsTrigger>
-      </TabsList>
-    </Tabs>
-  );
+  const FilterTabs = () => {
+    // For mobile devices, use a scrollable toggle group
+    if (isMobile) {
+      return (
+        <div className="mb-4 overflow-auto pb-2 -mx-2 px-2">
+          <ToggleGroup 
+            type="single" 
+            value={activeTab} 
+            onValueChange={(value) => value && setActiveTab(value)}
+            className="flex w-max space-x-1"
+          >
+            <ToggleGroupItem value="all" className="whitespace-nowrap">Todas</ToggleGroupItem>
+            <ToggleGroupItem value="extend" className="whitespace-nowrap">Ajustar</ToggleGroupItem>
+            <ToggleGroupItem value="shift" className="whitespace-nowrap">Deslocar</ToggleGroupItem>
+            <ToggleGroupItem value="optimize" className="whitespace-nowrap">Otimizar</ToggleGroupItem>
+            <ToggleGroupItem value="bridge" className="whitespace-nowrap">Pontes</ToggleGroupItem>
+            <ToggleGroupItem value="fraction" className="whitespace-nowrap">Fracionar</ToggleGroupItem>
+            <ToggleGroupItem value="recess" className="whitespace-nowrap">Recessos</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+      );
+    }
+
+    // For desktop, use the existing tabs layout with responsive grid
+    return (
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
+        <TabsList className="w-full grid grid-cols-7">
+          <TabsTrigger value="all">Todas</TabsTrigger>
+          <TabsTrigger value="extend">Ajustar</TabsTrigger>
+          <TabsTrigger value="shift">Deslocar</TabsTrigger>
+          <TabsTrigger value="optimize">Otimizar</TabsTrigger>
+          <TabsTrigger value="bridge">Pontes</TabsTrigger>
+          <TabsTrigger value="fraction">Fracionar</TabsTrigger>
+          <TabsTrigger value="recess">Recessos</TabsTrigger>
+        </TabsList>
+      </Tabs>
+    );
+  };
   
   // Recommendation card component
   const RecommendationCard = ({ recommendation }: { recommendation: Recommendation }) => (
