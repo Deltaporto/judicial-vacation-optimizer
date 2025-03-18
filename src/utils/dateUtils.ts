@@ -1,4 +1,3 @@
-
 import { DateRange, Holiday, VacationPeriod, EfficiencyRating, CalendarDay } from '@/types';
 import { isHoliday, isWeekend, getHolidaysInRange } from './holidayData';
 import { format, addDays, differenceInDays, isSameMonth, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
@@ -100,7 +99,8 @@ export const getVacationPeriodDetails = (startDate: Date, endDate: Date): Vacati
 // Get all days for a month's calendar view
 export const getCalendarDays = (
   month: Date,
-  selectedRange: DateRange | null
+  selectedRange: DateRange | null,
+  secondaryRange: DateRange | null = null
 ): CalendarDay[] => {
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
@@ -125,6 +125,9 @@ export const getCalendarDays = (
     let isSelectionStart = false;
     let isSelectionEnd = false;
     let isInSelection = false;
+    let isInSecondarySelection = false;
+    let isSecondarySelectionStart = false;
+    let isSecondarySelectionEnd = false;
     
     if (selectedRange) {
       const start = new Date(selectedRange.startDate);
@@ -139,6 +142,18 @@ export const getCalendarDays = (
       isSelected = isSelectionStart || isSelectionEnd;
     }
     
+    if (secondaryRange) {
+      const start = new Date(secondaryRange.startDate);
+      start.setHours(0, 0, 0, 0);
+      
+      const end = new Date(secondaryRange.endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      isSecondarySelectionStart = isSameDay(date, start);
+      isSecondarySelectionEnd = isSameDay(date, end);
+      isInSecondarySelection = date >= start && date <= end;
+    }
+    
     return {
       date,
       isWeekend: isWeekend(date),
@@ -148,6 +163,9 @@ export const getCalendarDays = (
       isSelectionStart,
       isSelectionEnd,
       isInSelection,
+      isInSecondarySelection,
+      isSecondarySelectionStart,
+      isSecondarySelectionEnd,
       holiday
     };
   });

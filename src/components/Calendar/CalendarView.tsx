@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format, getMonth, getYear, addMonths, subMonths, isSameMonth, isSameDay, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -16,6 +15,7 @@ import { isValidVacationPeriod } from '@/utils/dateUtils';
 
 interface CalendarViewProps {
   selectedRange: DateRange | null;
+  secondaryRange?: DateRange | null; // Novo: para o segundo período fracionado
   onDateSelect: (date: Date) => void;
   onDateRangeSelect: (range: DateRange) => void;
 }
@@ -24,6 +24,7 @@ const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 const CalendarView: React.FC<CalendarViewProps> = ({ 
   selectedRange, 
+  secondaryRange,
   onDateSelect,
   onDateRangeSelect
 }) => {
@@ -36,10 +37,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   
   // Update calendar days when month changes or selection/preview changes
   useEffect(() => {
+    console.log("UseEffect triggered - Recalculating calendar days");
+    console.log("Current selected range:", selectedRange);
+    console.log("Current preview range:", previewRange);
+    console.log("Current secondary range:", secondaryRange);
+    
     // Calculate actual range to highlight (either confirmed selection or preview)
     const effectiveRange = previewRange || selectedRange;
-    setCalendarDays(getCalendarDays(currentMonth, effectiveRange));
-  }, [currentMonth, selectedRange, previewRange]);
+    console.log("Effective range for rendering:", effectiveRange);
+    
+    setCalendarDays(getCalendarDays(currentMonth, effectiveRange, secondaryRange));
+  }, [currentMonth, selectedRange, previewRange, secondaryRange]);
   
   // Navigation functions
   const goToPreviousMonth = () => setCurrentMonth(prevMonth => subMonths(prevMonth, 1));
@@ -47,57 +55,66 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   
   // Handle click on a day - either start selection or complete it
   const handleDayClick = (day: CalendarDay) => {
-    if (!day.isCurrentMonth) return;
+    console.log("Day clicked:", day.date, "isCurrentMonth:", day.isCurrentMonth, "isInSelection:", day.isInSelection);
+    console.log("Current selection start:", selectionStart);
     
-    // If we already have a selection and click inside it, clear selection
-    if (selectedRange && day.isInSelection) {
+    // Se já temos um ponto de início selecionado e clicamos em outro dia,
+    // devemos completar a seleção, independentemente do preview
+    if (selectionStart) {
+      console.log("Completing selection");
+      const start = selectionStart < day.date ? new Date(selectionStart) : new Date(day.date);
+      const end = selectionStart < day.date ? new Date(day.date) : new Date(selectionStart);
+      
+      console.log("Final range:", start, "to", end);
+      
+      // Create a new DateRange object with proper dates
+      const range: DateRange = {
+        startDate: start,
+        endDate: end
+      };
+      
       setSelectionStart(null);
       setPreviewRange(null);
-      // Pass a new DateRange object to avoid circular reference
-      const newDate = new Date(day.date);
-      onDateRangeSelect({ startDate: newDate, endDate: newDate });
+      onDateRangeSelect(range);
       return;
     }
     
-    // If we're starting a new selection
-    if (!selectionStart) {
-      const newStartDate = new Date(day.date);
-      setSelectionStart(newStartDate);
-      // Just mark the start date without validation at this point
-      onDateSelect(newStartDate);
+    // Verificar se estamos clicando em um dia que já está em uma seleção existente
+    // (mas não durante o processo de seleção) para limpar
+    if (selectedRange && !selectionStart && day.isInSelection) {
+      console.log("Clearing existing selection");
+      setSelectionStart(null);
+      setPreviewRange(null);
+      onDateRangeSelect({ startDate: new Date(day.date), endDate: new Date(day.date) });
       return;
     }
     
-    // If we're completing a selection
-    const start = selectionStart < day.date ? new Date(selectionStart) : new Date(day.date);
-    const end = selectionStart < day.date ? new Date(day.date) : new Date(selectionStart);
-    
-    // Create a new DateRange object with proper dates
-    const range: DateRange = {
-      startDate: start,
-      endDate: end
-    };
-    
-    setSelectionStart(null);
-    setPreviewRange(null);
-    
-    // Complete the selection without validation
-    onDateRangeSelect(range);
+    // Se estamos iniciando uma nova seleção
+    console.log("Starting new selection");
+    const newStartDate = new Date(day.date);
+    setSelectionStart(newStartDate);
+    onDateSelect(newStartDate);
+    // Inicialize o preview range com a data inicial
+    setPreviewRange({
+      startDate: newStartDate,
+      endDate: newStartDate
+    });
   };
   
   // Handle mouse enter (hover) on a day
   const handleDayHover = (day: CalendarDay) => {
+    // Sempre atualiza a data de hover
     setHoverDate(day.date);
     
-    // Only update preview if we have a selection start point
-    if (selectionStart && day.isCurrentMonth) {
-      const start = selectionStart < day.date ? new Date(selectionStart) : new Date(day.date);
-      const end = selectionStart < day.date ? new Date(day.date) : new Date(selectionStart);
+    // Só atualize a visualização prévia se tivermos um ponto de início de seleção
+    if (selectionStart) {
+      // Garanta que a ordem das datas seja a correta (menor para maior)
+      const startDate = selectionStart < day.date ? new Date(selectionStart) : new Date(day.date);
+      const endDate = selectionStart < day.date ? new Date(day.date) : new Date(selectionStart);
       
-      // Create a new preview range with proper dates to avoid circular reference
       setPreviewRange({
-        startDate: start,
-        endDate: end
+        startDate,
+        endDate
       });
     }
   };
@@ -155,7 +172,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           let className = "h-10 w-full flex items-center justify-center relative rounded-md transition-all duration-200 text-sm";
           
           if (!day.isCurrentMonth) {
-            className += " text-gray-300 pointer-events-none";
+            className += " text-gray-300";
           } else {
             className += " cursor-pointer hover:bg-gray-100";
           }
@@ -189,6 +206,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               if (day.isSelectionEnd) {
                 className += " bg-blue-500 text-white rounded-r-md";
               }
+            }
+          }
+          
+          // Secondary range styling (período fracionado)
+          if (day.isInSecondarySelection) {
+            className += " bg-emerald-100";
+            if (day.isSecondarySelectionStart) {
+              className += " bg-emerald-500 text-white rounded-l-md";
+            }
+            if (day.isSecondarySelectionEnd) {
+              className += " bg-emerald-500 text-white rounded-r-md";
             }
           }
           
@@ -265,8 +293,16 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
       )}
       
+      {/* Super optimization reminder - only shown when no selection started */}
+      {!selectionStart && !selectedRange && (
+        <div className="px-4 py-2 border-t border-gray-100 text-xs text-gray-500 flex items-center">
+          <Info className="h-3 w-3 mr-1 flex-shrink-0" />
+          <span>Prefere não escolher manualmente? Experimente as "Super Otimizações" no painel lateral.</span>
+        </div>
+      )}
+      
       {/* Legend */}
-      <div className="p-4 border-t border-gray-100 bg-gray-50 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 border-t border-gray-100 text-xs">
         <div className="flex items-center">
           <div className="h-3 w-3 rounded-full bg-rose-500 mr-2" />
           <span>Feriado Nacional</span>

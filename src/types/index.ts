@@ -1,4 +1,3 @@
-
 // Type definitions for the application
 
 export type HolidayType = 'national' | 'judicial' | 'recess';
@@ -12,6 +11,7 @@ export interface Holiday {
 export interface DateRange {
   startDate: Date;
   endDate: Date;
+  description?: string; // Opcional, usado para informações adicionais
 }
 
 export interface VacationPeriod extends DateRange {
@@ -23,6 +23,20 @@ export interface VacationPeriod extends DateRange {
   efficiencyRating: EfficiencyRating;
   isValid: boolean;
   invalidReason?: string;
+}
+
+export interface SplitVacationPeriods {
+  isSplit: boolean;
+  firstPeriod: VacationPeriod;
+  secondPeriod: VacationPeriod;
+  combinedEfficiency: number;
+}
+
+export interface FractionedVacationPeriods {
+  isFractionated: boolean;
+  periods: VacationPeriod[];
+  combinedEfficiency: number;
+  efficiencyGain: number; // Ganho em relação ao período contínuo
 }
 
 export type EfficiencyRating = 'high' | 'medium' | 'low';
@@ -44,17 +58,22 @@ export interface CalendarDay {
   isSelectionStart: boolean;
   isSelectionEnd: boolean;
   isInSelection: boolean;
+  isInSecondarySelection?: boolean;
+  isSecondarySelectionStart?: boolean;
+  isSecondarySelectionEnd?: boolean;
   holiday?: Holiday;
 }
 
 export interface Recommendation {
   id: string;
-  type: 'extend' | 'reduce' | 'shift' | 'split' | 'combine';
+  type: 'extend' | 'reduce' | 'shift' | 'split' | 'combine' | 'bridge' | 'super_bridge' | 'optimize' | 'optimal_fraction' | 'hybrid' | 'hybrid_bridge_split' | 'optimal_hybrid' | 'recess';
   title: string;
   description: string;
   suggestedDateRange: DateRange;
   efficiencyGain: number;
   daysChanged: number;
+  fractionedPeriods?: VacationPeriod[]; // Para recomendações de tipo optimal_fraction
+  strategicScore?: number; // Pontuação estratégica para ordenação e avaliação
 }
 
 export interface CourtSettings {

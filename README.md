@@ -1,69 +1,59 @@
-# Welcome to your Lovable project
+# Planejador de Férias Judiciais
 
-## Project info
+Este projeto é uma aplicação web para otimização de férias judiciais, auxiliando magistrados e servidores do judiciário a escolher os melhores períodos para tirar férias, maximizando o aproveitamento de dias não úteis (feriados e fins de semana).
 
-**URL**: https://lovable.dev/projects/1eb21178-153f-407b-81bd-803143d322ac
+## Funcionalidades
 
-## How can I edit this code?
+- **Seleção de período de férias**: Escolha o período desejado no calendário interativo
+- **Análise de eficiência**: Visualização da eficiência do período selecionado
+- **Recomendações personalizadas**: Sugestões para otimizar o período de férias
+- **Super Otimizações**: Períodos pré-calculados com máxima eficiência para o ano atual
+- **Fracionamento de férias**: Divisão das férias em múltiplos períodos para maior eficiência
 
-There are several ways of editing your application.
+## Tecnologias Utilizadas
 
-**Use Lovable**
+Este projeto foi desenvolvido com:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/1eb21178-153f-407b-81bd-803143d322ac) and start prompting.
+- **React**: Biblioteca JavaScript para construção de interfaces
+- **TypeScript**: Superset de JavaScript com tipagem estática
+- **Vite**: Ferramenta de build rápida e moderna
+- **Tailwind CSS**: Framework CSS utilitário
+- **shadcn/ui**: Componentes de UI reutilizáveis
+- **lucide-react**: Biblioteca de ícones
+- **date-fns**: Manipulação de datas
 
-Changes made via Lovable will be committed automatically to this repo.
+## Como Executar Localmente
 
-**Use your preferred IDE**
+1. Clone o repositório:
+```bash
+git clone https://github.com/Deltaporto/judicial-vacation-optimizer.git
+cd judicial-vacation-optimizer
+```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+2. Instale as dependências:
+```bash
+npm install
+```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. Execute o projeto em modo de desenvolvimento:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+4. Acesse a aplicação em: http://localhost:8080
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Como Contribuir
 
-**Use GitHub Codespaces**
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/nova-funcionalidade`)
+3. Faça commit das suas mudanças (`git commit -m 'Adiciona nova funcionalidade'`)
+4. Faça push para a branch (`git push origin feature/nova-funcionalidade`)
+5. Abra um Pull Request
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Licença
 
-## What technologies are used for this project?
+Este projeto está licenciado sob a licença MIT - veja o arquivo LICENSE para mais detalhes.
 
-This project is built with .
+## Autores
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/1eb21178-153f-407b-81bd-803143d322ac) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+- **Delta Porto** - [GitHub](https://github.com/Deltaporto)
