@@ -2,6 +2,7 @@
   // Forçando novo deploy - 2024-03-19
   "name": "judicial-vacation-optimizer",
   "version": "1.0.0",
+  "description": "Otimizador de férias para magistrados federais - Deploy forçado em 2024-03-19",
   "main": "test-super.js",
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.3",
@@ -313,6 +314,5 @@
   "bugs": {
     "url": "https://github.com/Deltaporto/judicial-vacation-optimizer/issues"
   },
-  "homepage": "https://github.com/Deltaporto/judicial-vacation-optimizer#readme",
-  "description": ""
+  "homepage": "https://github.com/Deltaporto/judicial-vacation-optimizer#readme"
 }
