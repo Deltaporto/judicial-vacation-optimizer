@@ -26,6 +26,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { v4 as uuidv4 } from 'uuid';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface VacationRecommendationsProps {
   vacationPeriod: VacationPeriod | null;
@@ -41,6 +43,7 @@ const VacationRecommendations = forwardRef<
   const [superOptimizations, setSuperOptimizations] = useState<Recommendation[]>([]);
   const [showSuperOptimizations, setShowSuperOptimizations] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>("all");
+  const isMobile = useIsMobile();
   
   // Expõe a função handleShowSuperOptimizations para o componente pai via ref
   useImperativeHandle(ref, () => ({
@@ -336,23 +339,44 @@ const VacationRecommendations = forwardRef<
   );
   
   // Filter tabs component
-  const FilterTabs = () => (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-      <div className="space-y-3">
-        <TabsList className="w-full flex justify-between p-1 gap-2">
-          <TabsTrigger value="all" className="flex-1 px-3 py-1.5 text-center">Todas</TabsTrigger>
-          <TabsTrigger value="extend" className="flex-1 px-3 py-1.5 text-center">Ajustar</TabsTrigger>
-          <TabsTrigger value="shift" className="flex-1 px-3 py-1.5 text-center">Deslocar</TabsTrigger>
-          <TabsTrigger value="optimize" className="flex-1 px-3 py-1.5 text-center">Otimizar</TabsTrigger>
+  const FilterTabs = () => {
+    // For mobile devices, use a scrollable toggle group
+    if (isMobile) {
+      return (
+        <div className="mb-4 overflow-auto pb-2 -mx-2 px-2">
+          <ToggleGroup 
+            type="single" 
+            value={activeTab} 
+            onValueChange={(value) => value && setActiveTab(value)}
+            className="flex w-max space-x-1"
+          >
+            <ToggleGroupItem value="all" className="whitespace-nowrap">Todas</ToggleGroupItem>
+            <ToggleGroupItem value="extend" className="whitespace-nowrap">Ajustar</ToggleGroupItem>
+            <ToggleGroupItem value="shift" className="whitespace-nowrap">Deslocar</ToggleGroupItem>
+            <ToggleGroupItem value="optimize" className="whitespace-nowrap">Otimizar</ToggleGroupItem>
+            <ToggleGroupItem value="bridge" className="whitespace-nowrap">Pontes</ToggleGroupItem>
+            <ToggleGroupItem value="fraction" className="whitespace-nowrap">Fracionar</ToggleGroupItem>
+            <ToggleGroupItem value="recess" className="whitespace-nowrap">Recessos</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+      );
+    }
+
+    // For desktop, use the existing tabs layout with responsive grid
+    return (
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
+        <TabsList className="w-full grid grid-cols-7">
+          <TabsTrigger value="all">Todas</TabsTrigger>
+          <TabsTrigger value="extend">Ajustar</TabsTrigger>
+          <TabsTrigger value="shift">Deslocar</TabsTrigger>
+          <TabsTrigger value="optimize">Otimizar</TabsTrigger>
+          <TabsTrigger value="bridge">Pontes</TabsTrigger>
+          <TabsTrigger value="fraction">Fracionar</TabsTrigger>
+          <TabsTrigger value="recess">Recessos</TabsTrigger>
         </TabsList>
-        
-        <TabsList className="w-full flex justify-between p-1 gap-2">
-          <TabsTrigger value="bridge" className="flex-1 px-3 py-1.5 text-center">Pontes</TabsTrigger>
-          <TabsTrigger value="fraction" className="flex-1 px-3 py-1.5 text-center">Fracionar</TabsTrigger>
-        </TabsList>
-      </div>
-    </Tabs>
-  );
+      </Tabs>
+    );
+  };
   
   // Recommendation card component
   const RecommendationCard = ({ recommendation }: { recommendation: Recommendation }) => {
