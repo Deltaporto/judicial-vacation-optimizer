@@ -15,6 +15,7 @@
             margin: 0;
             background-color: #f5f5f5;
             padding: 20px;
+            color: #333;
         }
         .container {
             text-align: center;
@@ -32,6 +33,7 @@
         h2 {
             color: #4b5563;
             margin-top: 30px;
+            margin-bottom: 15px;
         }
         p {
             color: #4b5563;
@@ -42,7 +44,7 @@
             background-color: #f3f4f6;
             padding: 15px;
             border-radius: 8px;
-            margin-top: 20px;
+            margin: 20px 0;
             border-left: 4px solid #2563eb;
         }
         .features {
@@ -50,7 +52,7 @@
             flex-wrap: wrap;
             justify-content: center;
             gap: 20px;
-            margin-top: 30px;
+            margin-top: 20px;
         }
         .feature {
             background-color: #f9fafb;
@@ -58,17 +60,44 @@
             border-radius: 8px;
             width: 200px;
             text-align: center;
+            transition: transform 0.2s;
+        }
+        .feature:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
         }
         .feature h3 {
             color: #2563eb;
             margin-top: 0;
+        }
+        .details {
+            margin-top: 40px;
+            text-align: left;
+            background-color: #f9fafb;
+            padding: 25px;
+            border-radius: 8px;
+        }
+        .details h3 {
+            color: #2563eb;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .details ul {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+        footer {
+            margin-top: 40px;
+            font-size: 0.9em;
+            color: #6b7280;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Otimizador de Férias Judiciais</h1>
-        <p>A ferramenta que ajuda magistrados a otimizar seus períodos de férias de acordo com as regras e calendários judiciais.</p>
+        <p>A ferramenta especializada que ajuda magistrados a otimizar seus períodos de férias de acordo com as regras e calendários judiciais.</p>
         
         <div class="status">
             <h2>Site em Manutenção</h2>
@@ -88,9 +117,33 @@
             </div>
             <div class="feature">
                 <h3>Planejamento</h3>
-                <p>Planeje seus períodos de férias com antecedência.</p>
+                <p>Planeje seus períodos de férias com antecedência e eficiência.</p>
             </div>
         </div>
+        
+        <div class="details">
+            <h3>Sobre o Otimizador de Férias Judiciais</h3>
+            <p>Nossa plataforma foi desenvolvida especificamente para atender às necessidades dos magistrados brasileiros, 
+               respeitando as regras e regulamentos específicos do sistema judiciário nacional.</p>
+            
+            <h3>Principais Funcionalidades</h3>
+            <ul>
+                <li>Cálculo automático de períodos de férias elegíveis de acordo com as regras do CNJ</li>
+                <li>Visualização de calendário com feriados nacionais e datas do calendário judiciário</li>
+                <li>Verificação de regras de precedência e antiguidade</li>
+                <li>Alertas sobre sobreposições e conflitos com períodos críticos</li>
+                <li>Exportação de relatórios e planejamento anual</li>
+                <li>Interface intuitiva e responsiva para uso em diferentes dispositivos</li>
+            </ul>
+            
+            <h3>Por que usar o Otimizador?</h3>
+            <p>O sistema facilita o planejamento de férias, reduzindo erros e garantindo conformidade com todas as regras aplicáveis, 
+               economizando tempo e evitando problemas administrativos.</p>
+        </div>
+        
+        <footer>
+            <p>&copy; 2025 Otimizador de Férias Judiciais - Todos os direitos reservados</p>
+        </footer>
     </div>
 
     <script>
