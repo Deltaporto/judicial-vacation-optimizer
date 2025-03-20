@@ -3,7 +3,7 @@ import { format, getMonth, getYear, addMonths, subMonths, isSameMonth, isSameDay
 import { ptBR } from 'date-fns/locale';
 import { CalendarDay, DateRange, Holiday, ViewMode } from '@/types';
 import { getCalendarDays } from '@/utils/dateUtils';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
   Tooltip,
@@ -18,6 +18,8 @@ interface CalendarViewProps {
   secondaryRange?: DateRange | null; // Novo: para o segundo período fracionado
   onDateSelect: (date: Date) => void;
   onDateRangeSelect: (range: DateRange) => void;
+  onOpenHolidayModal?: () => void; // Nova prop para abrir o modal de feriados
+  onClearSelection?: () => void; // Nova prop para limpar a seleção
 }
 
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
@@ -26,7 +28,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   selectedRange, 
   secondaryRange,
   onDateSelect,
-  onDateRangeSelect
+  onDateRangeSelect,
+  onOpenHolidayModal,
+  onClearSelection
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -49,9 +53,22 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     setCalendarDays(getCalendarDays(currentMonth, effectiveRange, secondaryRange));
   }, [currentMonth, selectedRange, previewRange, secondaryRange]);
   
+  // Atualizar o mês para exibir o mês do período selecionado quando o selectedRange mudar
+  useEffect(() => {
+    if (selectedRange && selectedRange.startDate) {
+      setCurrentMonth(new Date(selectedRange.startDate));
+    }
+  }, [selectedRange]);
+  
   // Navigation functions
   const goToPreviousMonth = () => setCurrentMonth(prevMonth => subMonths(prevMonth, 1));
   const goToNextMonth = () => setCurrentMonth(prevMonth => addMonths(prevMonth, 1));
+  
+  // Verificar se existe um período completo selecionado (não apenas uma data única)
+  const hasCompletePeriod = selectedRange && 
+    selectedRange.startDate && 
+    selectedRange.endDate && 
+    selectedRange.startDate.getTime() !== selectedRange.endDate.getTime();
   
   // Handle click on a day - either start selection or complete it
   const handleDayClick = (day: CalendarDay) => {
@@ -101,6 +118,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     });
   };
   
+  // Handle clear selection button click
+  const handleClearSelection = () => {
+    if (onClearSelection) {
+      setSelectionStart(null);
+      setPreviewRange(null);
+      onClearSelection();
+    }
+  };
+  
   // Handle mouse enter (hover) on a day
   const handleDayHover = (day: CalendarDay) => {
     // Sempre atualiza a data de hover
@@ -131,6 +157,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     if (holiday.type === 'national') className = 'bg-red-50 text-red-700 border-red-100';
     if (holiday.type === 'judicial') className = 'bg-amber-50 text-amber-700 border-amber-100';
     if (holiday.type === 'recess') className = 'bg-purple-50 text-purple-700 border-purple-100';
+    // Adicionar estilo para feriados municipais
+    if (holiday.abrangencia && holiday.abrangencia.toLowerCase().includes('municipal')) {
+      className = 'bg-green-50 text-green-700 border-green-100';
+    }
     
     return (
       <div className={`px-2 py-1 rounded text-xs ${className}`}>
@@ -169,7 +199,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         {/* Calendar days */}
         {calendarDays.map((day, index) => {
           // Base styling
-          let className = "h-10 w-full flex items-center justify-center relative rounded-md transition-all duration-200 text-sm";
+          let className = "h-16 w-full flex flex-col items-center relative rounded-md transition-all duration-200";
           
           if (!day.isCurrentMonth) {
             className += " text-gray-300";
@@ -181,30 +211,31 @@ const CalendarView: React.FC<CalendarViewProps> = ({
             className += " border border-primary";
           }
           
-          // Special day styling
-          if (day.holiday) {
-            if (day.holiday.type === 'national') className += " text-red-600";
-            if (day.holiday.type === 'judicial') className += " text-amber-600";
-            if (day.holiday.type === 'recess') className += " text-purple-600";
-          } else if (day.isWeekend) {
-            className += " text-blue-500";
+          // Special day styling (apenas para o número)
+          let dayNumberClass = "text-sm font-medium mt-1";
+          
+          if (day.isWeekend) {
+            dayNumberClass += " text-blue-500";
           }
           
           // Selection styling
           if (day.isInSelection) {
             if (effectiveRange && !isCurrentRangeValid && previewRange === null) {
               // Invalid selection styling - only apply to confirmed selections, not previews
-              className += " bg-red-100 text-red-800";
+              className += " bg-red-100";
+              dayNumberClass += " text-red-800";
             } else {
               // Valid selection styling
               className += " bg-blue-100";
               
               // Special styling for start and end
               if (day.isSelectionStart) {
-                className += " bg-blue-500 text-white rounded-l-md";
+                className += " bg-blue-500 rounded-l-md";
+                dayNumberClass = "text-sm font-medium text-white mt-1";
               }
               if (day.isSelectionEnd) {
-                className += " bg-blue-500 text-white rounded-r-md";
+                className += " bg-blue-500 rounded-r-md";
+                dayNumberClass = "text-sm font-medium text-white mt-1";
               }
             }
           }
@@ -213,10 +244,27 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           if (day.isInSecondarySelection) {
             className += " bg-emerald-100";
             if (day.isSecondarySelectionStart) {
-              className += " bg-emerald-500 text-white rounded-l-md";
+              className += " bg-emerald-500 rounded-l-md";
+              dayNumberClass = "text-sm font-medium text-white mt-1";
             }
             if (day.isSecondarySelectionEnd) {
-              className += " bg-emerald-500 text-white rounded-r-md";
+              className += " bg-emerald-500 rounded-r-md";
+              dayNumberClass = "text-sm font-medium text-white mt-1";
+            }
+          }
+          
+          // Estilo para o rótulo do feriado (sem fundo colorido)
+          let holidayClass = "text-center text-[10px] mt-1";
+          
+          if (day.holiday) {
+            if (day.holiday.abrangencia && day.holiday.abrangencia.toLowerCase().includes('municipal')) {
+              holidayClass += " text-green-700 font-medium";
+            } else if (day.holiday.type === 'national') {
+              holidayClass += " text-red-700 font-medium";
+            } else if (day.holiday.type === 'judicial') {
+              holidayClass += " text-amber-700 font-medium";
+            } else if (day.holiday.type === 'recess') {
+              holidayClass += " text-purple-700 font-medium";
             }
           }
           
@@ -227,22 +275,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({
               onClick={() => handleDayClick(day)}
               onMouseEnter={() => handleDayHover(day)}
             >
-              <div className="absolute top-1 right-1 z-10">
-                {day.holiday && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        {renderHolidayTooltip(day.holiday)}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
+              <div className={dayNumberClass}>
+                {format(day.date, 'd')}
               </div>
               
-              <span>{format(day.date, 'd')}</span>
+              {day.holiday && (
+                <div className={holidayClass}>
+                  {day.holiday.name}
+                </div>
+              )}
             </div>
           );
         })}
@@ -262,6 +303,28 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
         
         <div className="flex items-center space-x-2">
+          {/* Botão para limpar seleção - só aparece quando há um período completo selecionado */}
+          {hasCompletePeriod && onClearSelection && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClearSelection}
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    <span>Limpar</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Limpar período selecionado
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          
           <Button 
             variant="outline" 
             size="icon" 
@@ -278,6 +341,28 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
+          
+          {/* Botão de feriados */}
+          {onOpenHolidayModal && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onOpenHolidayModal}
+                    className="ml-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                  >
+                    <CalendarIcon className="h-4 w-4 mr-1" />
+                    <span>Feriados</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Visualizar e gerenciar feriados
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
       
@@ -302,7 +387,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
       )}
       
       {/* Legend */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 border-t border-gray-100 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 p-4 border-t border-gray-100 text-xs">
         <div className="flex items-center">
           <div className="h-3 w-3 rounded-full bg-rose-500 mr-2" />
           <span>Feriado Nacional</span>
@@ -314,6 +399,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         <div className="flex items-center">
           <div className="h-3 w-3 rounded-full bg-purple-500 mr-2" />
           <span>Recesso Forense</span>
+        </div>
+        <div className="flex items-center">
+          <div className="h-3 w-3 rounded-full bg-green-500 mr-2" />
+          <span>Feriado Municipal</span>
         </div>
         <div className="flex items-center">
           <div className="h-3 w-3 rounded-full bg-blue-100 mr-2" />

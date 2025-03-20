@@ -2,15 +2,30 @@ import React from 'react';
 import { VacationPeriod, EfficiencyBreakdown } from '@/types';
 import { formatDate } from '@/utils/dateUtils';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { ArrowUp, ArrowDown, ArrowRight, Calendar, DownloadIcon } from 'lucide-react';
+import { 
+  ArrowUp, 
+  ArrowDown, 
+  ArrowRight, 
+  Calendar, 
+  DownloadIcon, 
+  Info,
+  Sun,
+  Umbrella,
+  Star,
+  TrendingUp,
+  Calendar as CalendarIcon,
+  Award
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { generateICSFile, downloadFile } from '@/utils/dateUtils';
 import { differenceInDays } from 'date-fns';
+import { calculateAdjustedEfficiency, calculateHolidayGain, findOptimalPeriods } from '@/utils/efficiencyUtils';
+import { Progress } from '@/components/ui/progress';
 
 interface EfficiencyCalculatorProps {
   vacationPeriod: VacationPeriod | null;
-  fractionedPeriods?: VacationPeriod[]; // Added for fractionated mode
-  isFractionated?: boolean; // Flag to indicate fractionated mode
+  fractionedPeriods?: VacationPeriod[];
+  isFractionated?: boolean;
 }
 
 const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({ 
@@ -114,44 +129,60 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
     );
   }
   
-  // Get rating color based on efficiency
-  const getEfficiencyColor = (efficiency: number) => {
-    if (efficiency >= 1.4) return 'text-green-600';
-    if (efficiency >= 1.2) return 'text-amber-500';
-    return 'text-red-500';
+  // Get rating based on efficiency
+  const getEfficiencyRating = (efficiency: number): {
+    label: string;
+    color: string;
+    icon: React.ReactNode;
+    description: string;
+    progress: number;
+  } => {
+    if (efficiency >= 1.4) {
+      return {
+        label: 'Excelente',
+        color: 'text-emerald-600',
+        icon: <Award className="h-5 w-5 text-emerald-600" />,
+        description: 'Período altamente otimizado com excelente aproveitamento de feriados e fins de semana',
+        progress: 100
+      };
+    }
+    if (efficiency >= 1.2) {
+      return {
+        label: 'Ótima',
+        color: 'text-green-600',
+        icon: <Star className="h-5 w-5 text-green-600" />,
+        description: 'Boa escolha! Aproveita bem os dias não úteis',
+        progress: 75
+      };
+    }
+    if (efficiency >= 1.1) {
+      return {
+        label: 'Boa',
+        color: 'text-blue-600',
+        icon: <TrendingUp className="h-5 w-5 text-blue-600" />,
+        description: 'Período com bom aproveitamento, mas ainda pode melhorar',
+        progress: 50
+      };
+    }
+    return {
+      label: 'Regular',
+      color: 'text-gray-600',
+      icon: <CalendarIcon className="h-5 w-5 text-gray-600" />,
+      description: 'Período padrão sem otimizações especiais',
+      progress: 25
+    };
   };
   
-  // Get rating icon based on efficiency
-  const getEfficiencyIcon = (rating: string) => {
-    switch (rating) {
-      case 'high':
-        return <ArrowUp className="h-5 w-5 text-green-600" />;
-      case 'medium':
-        return <ArrowRight className="h-5 w-5 text-amber-500" />;
-      case 'low':
-        return <ArrowDown className="h-5 w-5 text-red-500" />;
-      default:
-        return null;
-    }
+  // Função auxiliar para calcular o ganho real em dias de folga
+  const calculateVacationGain = (period: VacationPeriod): string => {
+    // Usar a função utilitária para calcular o ganho
+    const gainPercentage = calculateHolidayGain(period);
+    return `${gainPercentage}%`;
   };
   
   // Função auxiliar para formatar a eficiência em porcentagem de ganho
   const formatEfficiencyGain = (efficiency: number): string => {
     return `${((efficiency - 1) * 100).toFixed(0)}%`;
-  };
-  
-  // Função para obter o texto de classificação de eficiência
-  const getEfficiencyLabel = (rating: string): string => {
-    switch (rating) {
-      case 'high':
-        return 'Alta';
-      case 'medium':
-        return 'Média';
-      case 'low':
-        return 'Baixa';
-      default:
-        return '';
-    }
   };
   
   // Handle calendar export for a single period
@@ -164,20 +195,74 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
     );
   };
   
+  // Render improvement suggestions
+  const renderImprovementSuggestions = (period: VacationPeriod) => {
+    const year = period.startDate.getFullYear();
+    const betterPeriods = findOptimalPeriods(year, period.totalDays, 3)
+      .filter(p => p.efficiency > period.efficiency)
+      .slice(0, 3);
+
+    return (
+      <div className="mt-6 bg-blue-50 rounded-lg p-4">
+        <h3 className="text-blue-800 font-medium mb-2 flex items-center">
+          <Info className="h-4 w-4 mr-2" />
+          Como melhorar a eficiência
+        </h3>
+        <ul className="space-y-2 text-sm text-blue-700">
+          {period.startDate.getDay() !== 1 && (
+            <li className="flex items-center">
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Considere começar numa segunda-feira para aproveitar o fim de semana anterior
+            </li>
+          )}
+          {period.endDate.getDay() !== 5 && (
+            <li className="flex items-center">
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Termine numa sexta-feira para aproveitar o fim de semana seguinte
+            </li>
+          )}
+          {period.holidayDays === 0 && (
+            <li className="flex items-center">
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Busque períodos que incluam feriados em dias úteis
+            </li>
+          )}
+          {betterPeriods.length > 0 && (
+            <li className="mt-3 pt-3 border-t border-blue-100">
+              <strong>Períodos sugeridos com melhor eficiência:</strong>
+              <ul className="mt-2 space-y-1">
+                {betterPeriods.map((p, i) => (
+                  <li key={i} className="flex items-center">
+                    <Star className="h-3 w-3 mr-2" />
+                    {formatDate(p.startDate)} a {formatDate(p.endDate)} 
+                    <span className="ml-2 text-xs">
+                      (ganho de {((p.efficiency - period.efficiency) * 100).toFixed(0)}%)
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          )}
+        </ul>
+      </div>
+    );
+  };
+  
   // Single period analysis component
   const renderPeriodAnalysis = (period: VacationPeriod, index?: number) => {
-    // Prepare data for pie chart - atualizando para mostrar apenas dias úteis vs. feriados em dias úteis
-    const holidaysOnWorkdays = period.holidayDays; // Considerando apenas feriados em dias úteis
+    const efficiencyRating = getEfficiencyRating(period.efficiency);
+    const holidaysOnWorkdays = period.holidayDays;
     const effectiveWorkDays = period.workDays - holidaysOnWorkdays;
     
     const data = [
-      { name: 'Dias Úteis', value: effectiveWorkDays, color: '#ef4444' },
+      { name: 'Dias Úteis', value: effectiveWorkDays, color: '#94a3b8' },
       { name: 'Feriados em Dias Úteis', value: holidaysOnWorkdays, color: '#8b5cf6' },
       { name: 'Fins de Semana', value: period.weekendDays, color: '#3b82f6' },
     ];
-    
+
     const titlePrefix = index !== undefined ? `Período ${index + 1}: ` : '';
-    
+    const realGainPercentage = calculateVacationGain(period);
+
     return (
       <div className={`${index !== undefined ? 'mb-8 pb-8 border-b border-gray-200' : ''}`}>
         <div className="mb-6">
@@ -199,50 +284,61 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
               Exportar para Calendário
             </Button>
           </div>
+
+          {/* Efficiency Rating Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+            <div className="flex items-center mb-3">
+              {efficiencyRating.icon}
+              <h3 className={`text-lg font-medium ml-2 ${efficiencyRating.color}`}>
+                Eficiência {efficiencyRating.label}
+              </h3>
+            </div>
+            <Progress value={efficiencyRating.progress} className="mb-2" />
+            <p className="text-sm text-gray-600">{efficiencyRating.description}</p>
+          </div>
           
+          {/* Days Breakdown */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="text-sm text-gray-500">Total de dias</div>
-              <div className="text-2xl font-semibold">{period.totalDays}</div>
+            <div className="bg-slate-50 rounded-lg p-3">
+              <div className="flex items-center text-sm text-slate-600 mb-1">
+                <Calendar className="h-4 w-4 mr-1" />
+                Total de dias
+              </div>
+              <div className="text-2xl font-semibold text-slate-700">{period.totalDays}</div>
             </div>
             
-            <div className="bg-red-50 rounded-lg p-3">
-              <div className="text-sm text-red-600">Dias úteis</div>
-              <div className="text-2xl font-semibold text-red-600">{effectiveWorkDays}</div>
+            <div className="bg-slate-50 rounded-lg p-3">
+              <div className="flex items-center text-sm text-slate-600 mb-1">
+                <Sun className="h-4 w-4 mr-1" />
+                Dias úteis
+              </div>
+              <div className="text-2xl font-semibold text-slate-700">{effectiveWorkDays}</div>
             </div>
             
             <div className="bg-blue-50 rounded-lg p-3">
-              <div className="text-sm text-blue-600">Fins de semana</div>
+              <div className="flex items-center text-sm text-blue-600 mb-1">
+                <Umbrella className="h-4 w-4 mr-1" />
+                Fins de semana
+              </div>
               <div className="text-2xl font-semibold text-blue-600">{period.weekendDays}</div>
             </div>
             
             <div className="bg-purple-50 rounded-lg p-3">
-              <div className="text-sm text-purple-600">Feriados em dias úteis</div>
+              <div className="flex items-center text-sm text-purple-600 mb-1">
+                <Star className="h-4 w-4 mr-1" />
+                Feriados úteis
+              </div>
               <div className="text-2xl font-semibold text-purple-600">{holidaysOnWorkdays}</div>
             </div>
           </div>
         </div>
-        
-        {/* Efficiency visualization */}
-        <div className="flex flex-col sm:flex-row items-center justify-between mb-4">
-          <div className="flex items-center mb-4 sm:mb-0">
-            <div className={`flex items-center justify-center h-12 w-12 rounded-full ${
-              period.efficiencyRating === 'high' ? 'bg-green-100' :
-              period.efficiencyRating === 'medium' ? 'bg-amber-100' :
-              'bg-red-100'
-            } mr-4`}>
-              {getEfficiencyIcon(period.efficiencyRating)}
-            </div>
-            
-            <div>
-              <div className="text-sm text-gray-500">Classificação de eficiência</div>
-              <div className={`text-xl font-medium ${getEfficiencyColor(period.efficiency)}`}>
-                {getEfficiencyLabel(period.efficiencyRating)} {formatEfficiencyGain(period.efficiency)}
-              </div>
-            </div>
+
+        <div className="flex flex-col sm:flex-row items-center justify-between">
+          <div className="w-full sm:w-1/2 mb-4 sm:mb-0">
+            {renderImprovementSuggestions(period)}
           </div>
           
-          <div className="h-[250px] w-full sm:w-[250px] mx-auto">
+          <div className="h-[250px] w-full sm:w-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -280,34 +376,40 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
     
     let totalWorkDays = 0;
     let totalHolidaysOnWorkdays = 0;
-    let totalStrategicValue = 0;
-    let totalWeekendActivationValue = 0;
     
     validPeriods.forEach(period => {
-      // Acumular dias úteis de todos os períodos
+      // Acumular dias úteis e feriados em dias úteis
       totalWorkDays += period.workDays;
-      
-      // Calcular componentes de eficiência para cada período individualmente
-      // A eficiência já está calculada para cada período usando a nova fórmula,
-      // então vamos extrair os componentes proporcionalmente
-      const periodEfficiency = period.efficiency - 1.0; // Remover o valor base 1.0
-      const periodWorkDays = period.workDays;
-      
-      // Multiplicar a eficiência pelos dias úteis para obter o valor bruto que foi
-      // adicionado pela nova fórmula, e então acumular esse valor
-      const rawValue = periodEfficiency * periodWorkDays;
-      
-      // Como não temos acesso direto aos componentes internos da eficiência já calculada,
-      // vamos simplesmente acumular o valor bruto total
-      totalStrategicValue += rawValue;
+      totalHolidaysOnWorkdays += period.holidayDays;
     });
     
     // Evitar divisão por zero
     if (totalWorkDays === 0) return 0;
     
-    // Calcular a eficiência combinada usando o valor estratégico acumulado dividido pelo total de dias úteis
-    // e adicionar o valor base 1.0 para manter a escala consistente
-    return (totalStrategicValue / totalWorkDays) + 1.0;
+    // Calcular a eficiência combinada usando a mesma lógica do calculateAdjustedEfficiency
+    // Onde o ganho é proporcional aos feriados em dias úteis
+    return 1.0 + (totalHolidaysOnWorkdays / totalWorkDays);
+  };
+  
+  // Calcular ganho real combinado para períodos fracionados
+  const calculateCombinedVacationGain = (periods: VacationPeriod[]): string => {
+    const validPeriods = periods.filter(Boolean);
+    
+    if (validPeriods.length === 0) return '0%';
+    
+    let totalWorkDays = 0;
+    let totalHolidaysOnWorkdays = 0;
+    
+    validPeriods.forEach(period => {
+      totalWorkDays += period.workDays;
+      totalHolidaysOnWorkdays += period.holidayDays;
+    });
+    
+    if (totalWorkDays === 0 || totalHolidaysOnWorkdays === 0) return '0%';
+    
+    // Calcular ganho percentual de dias de folga usando a mesma lógica
+    const gainPercentage = Math.round((totalHolidaysOnWorkdays / totalWorkDays) * 100);
+    return `${gainPercentage}%`;
   };
   
   // Fractionated periods summary component
@@ -319,6 +421,7 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
     if (validPeriods.length === 0) return null;
     
     const combinedEfficiency = calculateCombinedEfficiency(validPeriods);
+    const realGainPercentage = calculateCombinedVacationGain(validPeriods);
     
     return (
       <div className="mb-6 p-4 bg-blue-50 rounded-lg">
@@ -331,8 +434,15 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
           
           <div className="bg-white rounded-lg p-3 flex-1">
             <div className="text-sm text-gray-500">Eficiência combinada</div>
-            <div className={`text-xl font-semibold ${getEfficiencyColor(combinedEfficiency)}`}>
+            <div className={`text-xl font-semibold ${getEfficiencyRating(combinedEfficiency).color}`}>
               {formatEfficiencyGain(combinedEfficiency)}
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-3 flex-1">
+            <div className="text-sm text-gray-500">Ganho real em dias de folga</div>
+            <div className="text-xl font-semibold text-purple-600">
+              {realGainPercentage}
             </div>
           </div>
         </div>
@@ -358,8 +468,8 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
             <div className="p-6 border-b border-gray-100">
               <h2 className="text-lg font-medium flex items-center">
                 Análise de Eficiência
-                <span className={`ml-2 text-sm px-2 py-0.5 rounded-full ${getEfficiencyColor(singlePeriod.efficiency)} bg-opacity-10`}>
-                  {getEfficiencyLabel(singlePeriod.efficiencyRating)} {formatEfficiencyGain(singlePeriod.efficiency)}
+                <span className={`ml-2 text-sm px-2 py-0.5 rounded-full ${getEfficiencyRating(singlePeriod.efficiency).color} bg-opacity-10`}>
+                  {getEfficiencyRating(singlePeriod.efficiency).label}
                 </span>
               </h2>
             </div>
@@ -369,10 +479,10 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
             </div>
             
             <div className="p-4 border-t border-gray-100 bg-gray-50 text-xs text-gray-500">
-              A eficiência é calculada considerando o ganho real de descanso, 
-              especialmente os feriados em dias úteis. Períodos que começam na segunda-feira e/ou terminam na 
-              sexta-feira recebem bonificação por não desperdiçarem os finais de semana. A nova fórmula prioriza 
-              o uso estratégico dos dias de férias em dias úteis para maximizar o ganho efetivo de descanso.
+              A eficiência é calculada com base em dois fatores principais: 
+              1) Ganho de feriados: a proporção de feriados em dias úteis em relação ao total de dias úteis (principal benefício). 
+              2) Ganho de posicionamento: bônus para períodos que começam na segunda-feira e/ou terminam na sexta-feira, otimizando o uso dos finais de semana. 
+              O ganho real em dias de folga indica a porcentagem direta de dias extras de folga obtidos (feriados em dias úteis ÷ dias úteis).
             </div>
           </div>
         );
@@ -399,10 +509,10 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
         </div>
         
         <div className="p-4 border-t border-gray-100 bg-gray-50 text-xs text-gray-500">
-          A eficiência é calculada considerando o ganho real de descanso, 
-          especialmente os feriados em dias úteis. Períodos que começam na segunda-feira e/ou terminam na 
-          sexta-feira recebem bonificação por não desperdiçarem os finais de semana. A nova fórmula prioriza 
-          o uso estratégico dos dias de férias em dias úteis para maximizar o ganho efetivo de descanso.
+          A eficiência é calculada com base em dois fatores principais: 
+          1) Ganho de feriados: a proporção de feriados em dias úteis em relação ao total de dias úteis (principal benefício). 
+          2) Ganho de posicionamento: bônus para períodos que começam na segunda-feira e/ou terminam na sexta-feira, otimizando o uso dos finais de semana. 
+          O ganho real em dias de folga indica a porcentagem direta de dias extras de folga obtidos (feriados em dias úteis ÷ dias úteis).
         </div>
       </div>
     );
@@ -440,10 +550,10 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
   }
   
   // Updated explanation text
-  const efficiencyExplanationText = `A eficiência é calculada considerando o ganho real de descanso, 
-    especialmente os feriados em dias úteis. Períodos que começam na segunda-feira e/ou terminam na 
-    sexta-feira recebem bonificação por não desperdiçarem os finais de semana. A nova fórmula prioriza 
-    o uso estratégico dos dias de férias em dias úteis para maximizar o ganho efetivo de descanso.`;
+  const efficiencyExplanationText = `A eficiência é calculada com base em dois fatores principais: 
+    1) Ganho de feriados: a proporção de feriados em dias úteis em relação ao total de dias úteis (principal benefício). 
+    2) Ganho de posicionamento: bônus para períodos que começam na segunda-feira e/ou terminam na sexta-feira, otimizando o uso dos finais de semana. 
+    O ganho real em dias de folga indica a porcentagem direta de dias extras de folga obtidos (feriados em dias úteis ÷ dias úteis).`;
   
   // Display single period analysis
   return (
@@ -451,14 +561,16 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
       <div className="p-6 border-b border-gray-100">
         <h2 className="text-lg font-medium flex items-center">
           Análise de Eficiência
-          <span className={`ml-2 text-sm px-2 py-0.5 rounded-full ${getEfficiencyColor(vacationPeriod.efficiency)} bg-opacity-10`}>
-            {getEfficiencyLabel(vacationPeriod.efficiencyRating)} {formatEfficiencyGain(vacationPeriod.efficiency)}
-          </span>
+          {vacationPeriod && (
+            <span className={`ml-2 text-sm px-2 py-0.5 rounded-full ${getEfficiencyRating(vacationPeriod.efficiency).color} bg-opacity-10`}>
+              {getEfficiencyRating(vacationPeriod.efficiency).label}
+            </span>
+          )}
         </h2>
       </div>
       
       <div className="p-6">
-        {renderPeriodAnalysis(vacationPeriod)}
+        {vacationPeriod && renderPeriodAnalysis(vacationPeriod)}
       </div>
       
       <div className="p-4 border-t border-gray-100 bg-gray-50 text-xs text-gray-500">

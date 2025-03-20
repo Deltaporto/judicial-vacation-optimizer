@@ -14,6 +14,8 @@ export const getDayOfWeek = (date: Date, abbreviated: boolean = false): string =
 };
 
 // Check if a date range is valid (minimum 5 days)
+// Esta validação é usada tanto para períodos selecionados pelo usuário quanto para
+// recomendações geradas pelo sistema, conforme Resolução nº 940/2025 do CJF
 export const isValidVacationPeriod = (startDate: Date, endDate: Date): { isValid: boolean; reason?: string } => {
   const days = differenceInDays(endDate, startDate) + 1;
   
@@ -62,23 +64,89 @@ export const calculateDaysBreakdown = (
 
 // Calculate efficiency of a vacation period
 export const calculateEfficiency = (workDays: number, totalDays: number): number => {
-  // Efficiency formula: 1 - (workDays / totalDays)
-  // Higher value means better efficiency (more non-work days per vacation day)
-  if (totalDays === 0) return 0;
-  return 1 - (workDays / totalDays);
+  // Efficiency formula: totalDays / workDays
+  // Higher value means better efficiency (more total days per work day used)
+  if (workDays === 0) return 0; // Evitar divisão por zero
+  return totalDays / workDays;
+};
+
+// Nova função de cálculo de eficiência aprimorada
+export const calculateImprovedEfficiency = (startDate: Date, endDate: Date): number => {
+  // Garantir que as datas estejam no formato correto
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+  
+  // Análise do período
+  const { workDays, weekendDays, holidayDays, totalDays } = calculateDaysBreakdown(start, end);
+  
+  // 1. Valor base: Apenas dias úteis regulares consumidos (custo)
+  const workDaysSpent = workDays;
+  
+  // 2. Ganho real: Apenas feriados que caem em dias úteis (benefício direto)
+  let holidaysOnWorkdays = 0;
+  let currentDate = new Date(start);
+  while (currentDate <= end) {
+    if (isHoliday(currentDate) && !isWeekend(currentDate)) {
+      holidaysOnWorkdays++;
+    }
+    currentDate = addDays(currentDate, 1);
+  }
+  
+  // 3. Valor estratégico: Posicionamento que potencializa fins de semana
+  let strategicValue = 0;
+  
+  // Bônus para início em segunda-feira
+  if (start.getDay() === 1) {
+    strategicValue += 0.3;
+  }
+  
+  // Bônus para término em sexta-feira
+  if (end.getDay() === 5) {
+    strategicValue += 0.3;
+  }
+  
+  // Bônus adicional para período "perfeito" (segunda a sexta)
+  if (start.getDay() === 1 && end.getDay() === 5) {
+    strategicValue += 0.3;
+  }
+  
+  // 4. Valor de "ativação de fim de semana"
+  let weekendActivationValue = 0;
+  
+  // Férias terminando na sexta ativa o fim de semana seguinte
+  if (end.getDay() === 5) {
+    weekendActivationValue += 0.6;
+  }
+  
+  // Férias começando na segunda aproveita o fim de semana anterior
+  if (start.getDay() === 1) {
+    weekendActivationValue += 0.6;
+  }
+  
+  // 5. Cálculo da eficiência final
+  if (workDaysSpent === 0) return 0; // Evitar divisão por zero
+  
+  const efficiency = (holidaysOnWorkdays + strategicValue + weekendActivationValue) / workDaysSpent;
+  
+  // Aplicar um multiplicador para manter a escala de valores próxima à original
+  // para compatibilidade com o restante do sistema
+  return efficiency + 1.0; // +1.0 para manter coerência com escala anterior
 };
 
 // Determine efficiency rating based on the value
 export const getEfficiencyRating = (efficiency: number): EfficiencyRating => {
-  if (efficiency >= 0.6) return 'high';
-  if (efficiency >= 0.4) return 'medium';
+  if (efficiency >= 1.4) return 'high';    // 40% ou mais de dias extras
+  if (efficiency >= 1.2) return 'medium';  // 20% ou mais de dias extras
   return 'low';
 };
 
 // Get full vacation period details from a date range
 export const getVacationPeriodDetails = (startDate: Date, endDate: Date): VacationPeriod => {
   const { workDays, weekendDays, holidayDays, totalDays } = calculateDaysBreakdown(startDate, endDate);
-  const efficiency = calculateEfficiency(workDays, totalDays);
+  // Substituindo a antiga função de eficiência pela nova
+  const efficiency = calculateImprovedEfficiency(startDate, endDate);
   const efficiencyRating = getEfficiencyRating(efficiency);
   const { isValid, reason } = isValidVacationPeriod(startDate, endDate);
   

@@ -6,6 +6,8 @@ export interface Holiday {
   date: string; // ISO format: YYYY-MM-DD
   name: string;
   type: HolidayType;
+  abrangencia?: string; // Texto de abrangência (ex: "Municipal (Rio de Janeiro)")
+  description?: string; // Descrição adicional
 }
 
 export interface DateRange {

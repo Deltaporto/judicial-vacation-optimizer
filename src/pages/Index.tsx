@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Layout/Header';
 import Footer from '@/components/Layout/Footer';
 import CalendarView from '@/components/Calendar/CalendarView';
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { generateRecommendations } from '@/utils/efficiencyUtils';
 import { Lightbulb } from 'lucide-react';
+import HolidayModal from '@/components/Holidays/HolidayModal';
 
 const Index = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -26,6 +27,12 @@ const Index = () => {
   const [splitPeriod, setSplitPeriod] = useState<DateRange | null>(null);
   const [splitPeriods, setSplitPeriods] = useState<DateRange[]>([]);
   const [vacationRecommendations, setVacationRecommendations] = useState<any[]>([]);
+  
+  const [showHolidayModal, setShowHolidayModal] = useState<boolean>(false);
+  // Adicionar estado para forçar a renderização do calendário
+  const [calendarKey, setCalendarKey] = useState<number>(0);
+  // Adicionar referência para o componente VacationRecommendations
+  const vacationRecommendationsRef = useRef<any>(null);
   
   // Update vacation period when date range changes
   useEffect(() => {
@@ -152,6 +159,9 @@ const Index = () => {
               endDate: secondEnd 
             }]);
             
+            // Atualizar o mês do calendário para o mês do período recomendado
+            setCalendarKey(prev => prev + 1);
+            
             return;
           }
         }
@@ -163,6 +173,9 @@ const Index = () => {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate
       });
+      
+      // Atualizar o mês do calendário para o mês do período recomendado
+      setCalendarKey(prev => prev + 1);
       
       showSuccess('Recomendação híbrida aplicada com sucesso!');
       return;
@@ -198,6 +211,10 @@ const Index = () => {
             startDate: firstStart,
             endDate: firstEnd
           });
+          
+          // Atualizar o mês do calendário para o mês do período recomendado
+          setCalendarKey(prev => prev + 1);
+          
           return;
         }
       }
@@ -228,6 +245,9 @@ const Index = () => {
           })));
         }
         
+        // Atualizar o mês do calendário para o mês do período recomendado
+        setCalendarKey(prev => prev + 1);
+        
         return;
       }
     }
@@ -237,6 +257,9 @@ const Index = () => {
       startDate: dateRange.startDate,
       endDate: dateRange.endDate
     });
+    
+    // Atualizar o mês do calendário para o mês do período recomendado
+    setCalendarKey(prev => prev + 1);
     
     if (recommendationType) {
       showSuccess('Recomendação aplicada com sucesso!');
@@ -301,9 +324,72 @@ const Index = () => {
     }
   }, [vacationPeriod, splitVacations, splitPeriod, splitPeriods]);
   
+  const handleHolidaysUpdated = () => {
+    // Se houver um período de férias selecionado, recalcular após atualização dos feriados
+    if (selectedRange && isRangeComplete) {
+      const periodDetails = getVacationPeriodDetails(selectedRange.startDate, selectedRange.endDate);
+      setVacationPeriod(periodDetails);
+      
+      // Atualizar recomendações com base nos novos feriados
+      if (periodDetails.isValid) {
+        const recommendations = generateRecommendations(
+          selectedRange.startDate,
+          selectedRange.endDate,
+          periodDetails
+        );
+        setVacationRecommendations(recommendations);
+      }
+      
+      // Notificar o usuário
+      toast({
+        title: "Feriados atualizados",
+        description: "O período de férias foi recalculado com os novos feriados.",
+      });
+    }
+    
+    // Forçar a renderização do calendário atualizando o key
+    setCalendarKey(prev => prev + 1);
+  };
+  
+  // Função para lidar com o botão de limpar seleção do calendário
+  const handleClearSelection = () => {
+    // Limpar a seleção atual
+    setSelectedRange(null);
+    setSelectedDate(null);
+    setVacationPeriod(null);
+    setIsRangeComplete(false);
+    setSplitVacations(null);
+    setSplitPeriods([]);
+    
+    // Mostrar toast informando que a seleção foi limpa
+    toast({
+      title: "Período Limpo",
+      description: "Seleção de período removida. Exibindo super otimizações.",
+    });
+    
+    // Forçar a renderização do calendário para atualizar o estado
+    setCalendarKey(prev => prev + 1);
+    
+    // Mostrar super otimizações usando a ref
+    if (vacationRecommendationsRef.current) {
+      vacationRecommendationsRef.current.showSuperOptimizations();
+    }
+  };
+  
+  const handleOpenHolidayModal = () => {
+    setShowHolidayModal(true);
+  };
+  
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
+      <Header onHolidaysUpdated={handleHolidaysUpdated} />
+      
+      {/* Modal de feriados */}
+      <HolidayModal
+        open={showHolidayModal}
+        onOpenChange={setShowHolidayModal}
+        onHolidaysUpdated={handleHolidaysUpdated}
+      />
       
       <main className="flex-grow container mx-auto py-8 px-4 sm:px-6">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8">
@@ -334,11 +420,15 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
           {/* Left column - Calendar */}
           <div className="lg:col-span-2">
-            <CalendarView 
+            {/* Usar key para forçar a renderização do CalendarView */}
+            <CalendarView
+              key={calendarKey}
               selectedRange={selectedRange}
               secondaryRange={splitPeriods.length > 0 ? splitPeriods[0] : null}
               onDateSelect={handleDateSelect}
               onDateRangeSelect={handleDateRangeSelect}
+              onOpenHolidayModal={handleOpenHolidayModal}
+              onClearSelection={handleClearSelection}
             />
             
             {/* Análise de Eficiência agora abaixo do calendário */}
@@ -424,6 +514,7 @@ const Index = () => {
             <VacationRecommendations 
               vacationPeriod={isRangeComplete ? vacationPeriod : null}
               onRecommendationSelect={handleRecommendationSelect}
+              ref={vacationRecommendationsRef}
             />
           </div>
         </div>

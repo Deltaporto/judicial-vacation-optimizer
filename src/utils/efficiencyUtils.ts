@@ -186,11 +186,11 @@ const findPotentialBridges = (year: number, maxBridgeSize: number = 3): { startD
           // Permitimos mas com pontuação menor
         }
         
-        // Verificar o total de dias do período completo (incluindo os dias não úteis ao redor)
-        const totalDays = differenceInDays(next, current) + 1;
+        // Verificar o total de dias do período formal de férias (dias entre bridgeStart e bridgeEnd)
+        const formalVacationDays = differenceInDays(bridgeEnd, bridgeStart) + 1;
         
-        // Only add bridges that contain actual work days and meet the minimum 4-day requirement
-        if (workDays > 0 && totalDays >= 4) {
+        // Apenas adicionar pontes com dias úteis e onde o período formal de férias tenha pelo menos 5 dias
+        if (workDays > 0 && formalVacationDays >= 5) {
           bridges.push({
             startDate: bridgeStart,
             endDate: bridgeEnd,
@@ -199,10 +199,7 @@ const findPotentialBridges = (year: number, maxBridgeSize: number = 3): { startD
           });
         }
         
-        // Skip to next potential cluster
-        break;
-      } else if (gapDays > maxBridgeSize) {
-        // Skip to next cluster if gap is too large
+        // Move to the next cluster since we've processed this bridge
         break;
       }
     }
@@ -715,7 +712,7 @@ const findOptimalShift = (
  * @param period Período de férias a ser avaliado
  * @returns Valor de eficiência ajustado
  */
-const calculateAdjustedEfficiency = (period: VacationPeriod): number => {
+export const calculateAdjustedEfficiency = (period: VacationPeriod): number => {
   // Evitamos usar a fórmula original que considera finais de semana e feriados como ganho
   // Em vez disso, calculamos apenas o ganho real de dias de descanso
   
@@ -2214,7 +2211,7 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
   // FUNÇÃO DE FALLBACK - SEMPRE RETORNA ALGUMAS RECOMENDAÇÕES BÁSICAS
   // Esta função garante que sempre existam algumas recomendações, independentemente dos cálculos
   const createFallbackRecommendations = (year: number): Recommendation[] => {
-    console.log("Criando recomendações de fallback para o ano", year);
+    console.log("[LOG] Criando recomendações de fallback para o ano", year);
     const fallbackRecs: Recommendation[] = [];
     
     // Definir alguns feriados comuns
@@ -2274,24 +2271,31 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
         }
       }
       
-      // Verificar se o período tem pelo menos 4 dias (suficiente para uma ponte estratégica)
+      // Verificar se o período tem pelo menos 5 dias (suficiente para uma ponte estratégica)
       const duration = differenceInDays(endDate, startDate) + 1;
-      if (duration < 4) {
-        // Ajustar para garantir 4 dias mínimo, mas ainda evitando o feriado
+      
+      console.log(`[LOG] Gerando recomendação de ponte fallback para ${holiday.name}: ${format(startDate, 'dd/MM/yyyy')} a ${format(endDate, 'dd/MM/yyyy')} - Duração: ${duration} dias`);
+      
+      if (duration < 5) {
+        console.log(`[LOG] AJUSTANDO ponte fallback por ter apenas ${duration} dias`);
+        // Ajustar para garantir 5 dias mínimo, mas ainda evitando o feriado
         if (startDate > holidayDate) {
           // Se começamos depois do feriado, expandimos para frente
-          endDate = addDays(startDate, 3);
+          endDate = addDays(startDate, 4); // Garantir 5 dias (startDate + 4)
         } else if (endDate < holidayDate) {
           // Se terminamos antes do feriado, expandimos para trás
-          startDate = subDays(endDate, 3);
+          startDate = subDays(endDate, 4); // Garantir 5 dias (endDate - 4)
         } else {
           // Caso especial: escolher uma direção
           startDate = addDays(holidayDate, 1);
-          endDate = addDays(startDate, 3);
+          endDate = addDays(startDate, 4); // 5 dias total
         }
+        
+        console.log(`[LOG] Ponte fallback AJUSTADA: ${format(startDate, 'dd/MM/yyyy')} a ${format(endDate, 'dd/MM/yyyy')} - Nova duração: ${differenceInDays(endDate, startDate) + 1} dias`);
       }
       
       const details = getVacationPeriodDetails(startDate, endDate);
+      const formalDuration = differenceInDays(endDate, startDate) + 1;
       
       const bridgeRec: Recommendation = {
         id: uuidv4(),
@@ -2307,6 +2311,7 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
         strategicScore: 8
       };
       
+      console.log(`[LOG] Adicionando ponte fallback: ${format(startDate, 'dd/MM/yyyy')} a ${format(endDate, 'dd/MM/yyyy')} - Dias formais: ${formalDuration}`);
       fallbackRecs.push(bridgeRec);
     });
     
@@ -2503,10 +2508,13 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
       console.log(`Analisando super otimizações para o ano ${year}`);
       
       // 1. Encontrar pontes estratégicas (gaps entre feriados e fins de semana)
-      const allBridges = findPotentialBridges(year, 8) // Aumentado para 8 dias para capturar mais oportunidades
+      const allBridges = findPotentialBridges(year, 10) // Aumentado para 10 dias para capturar mais oportunidades
         .map(bridge => {
           const bridgePeriod = getVacationPeriodDetails(bridge.startDate, bridge.endDate);
           const totalDays = bridgePeriod.totalDays;
+          const formalPeriodDays = differenceInDays(bridge.endDate, bridge.startDate) + 1;
+          console.log(`[LOG] Ponte encontrada: ${format(bridge.startDate, 'dd/MM/yyyy')} a ${format(bridge.endDate, 'dd/MM/yyyy')} - Dias formais: ${formalPeriodDays}, Dias úteis: ${bridge.workDays}`);
+          
           const nonWorkDays = bridgePeriod.weekendDays + bridgePeriod.holidayDays;
           const efficiency = nonWorkDays / totalDays;
           const roi = efficiency / bridge.workDays;
@@ -2532,19 +2540,25 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
             strategicScore
           };
         })
-        // Filtrar pontes de qualidade razoável - critérios reduzidos para incluir mais opções
+        // Filtros mais permissivos para incluir mais pontes
         .filter(bridge => {
+          const formalPeriodDays = differenceInDays(bridge.period.endDate, bridge.startDate) + 1;
+          const meetsMinimumDays = formalPeriodDays >= 5;
+          console.log(`[LOG] Filtrando ponte: ${format(bridge.startDate, 'dd/MM/yyyy')} a ${format(bridge.period.endDate, 'dd/MM/yyyy')} - Dias formais: ${formalPeriodDays}, Atende mínimo: ${meetsMinimumDays}`);
+          
           return (
-            // Critérios mais permissivos para pontes estratégicas:
-            (bridge.efficiency >= 0.2) && // Reduzido para incluir mais opções
+            // Critérios MUITO mais permissivos para pontes estratégicas:
+            meetsMinimumDays && // Período formal mínimo de 5 dias
+            (bridge.efficiency >= 0.1) && // Reduzido drasticamente para incluir mais opções
             (
-              bridge.roi > 0.15 || // Reduzido para incluir mais opções
-              bridge.strategicScore > 3 || // Reduzido para incluir mais opções
-              (bridge.workDays <= 5 && bridge.efficiency > 0.3) // Ampliado para capturar mais oportunidades
+              bridge.roi > 0.1 || // Reduzido para incluir mais opções
+              bridge.strategicScore > 1 || // Reduzido para incluir quase todas as pontes
+              (bridge.workDays <= 7) // Qualquer ponte com até 7 dias úteis
             )
           );
         })
-        .sort((a, b) => b.strategicScore - a.strategicScore);
+        // Ordenar por eficiência (do maior para o menor)
+        .sort((a, b) => b.efficiency - a.efficiency);
       
       console.log(`Encontradas ${allBridges.length} pontes potenciais para o ano ${year}`);
       
@@ -2628,19 +2642,18 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
       
       // 7. Realizar seleção das melhores recomendações sem sobreposição
       
-      // 7.1 Selecionar até 8 super pontes por ano (alta eficiência, poucos dias)
+      // 7.1 Usar todas as pontes encontradas, sem limite de quantidade
+      // Considerar todas as pontes como "super pontes" para melhorar visualização
       const superBridges = allBridges
-        .filter(bridge => (
-          (bridge.workDays <= 3 && bridge.efficiency > 0.4) || // Mini pontes eficientes
-          (bridge.workDays <= 4 && bridge.efficiency > 0.45) || // Pontes curtas eficientes
-          (bridge.workDays <= 5 && bridge.efficiency > 0.5) || // Pontes médias muito eficientes
-          (bridge.roi > 0.3) // ROI alto independente da duração
-        ))
-        // Garantir que todas as pontes tenham pelo menos 3 dias no total
-        .filter(bridge => bridge.period.totalDays >= 3)
-        .slice(0, 12); // Aumentado para permitir mais super pontes
+        // Garantir que todas as pontes tenham período formal de férias de pelo menos 5 dias
+        .filter(bridge => {
+          const formalVacationDays = differenceInDays(bridge.period.endDate, bridge.startDate) + 1;
+          const meetsMinimumDays = formalVacationDays >= 5;
+          console.log(`[LOG] Verificando requisito mínimo para ponte: ${format(bridge.startDate, 'dd/MM/yyyy')} a ${format(bridge.period.endDate, 'dd/MM/yyyy')} - Dias formais: ${formalVacationDays}, Atende requisito: ${meetsMinimumDays}`);
+          return meetsMinimumDays;
+        });
       
-      console.log(`Selecionadas ${superBridges.length} super pontes potenciais para o ano ${year}`);
+      console.log(`Selecionadas ${superBridges.length} pontes potenciais para o ano ${year}`);
       
       // ADICIONANDO RECOMENDAÇÕES FORÇADAS PARA TESTE
       // Criar algumas super pontes básicas se não encontrarmos nenhuma
@@ -2733,42 +2746,81 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
           dateRangesOverlap(bridge.startDate, bridge.period.endDate, period.startDate, period.endDate)
         );
         
-        if (!hasOverlap && superBridgesAdded < 8) { // Limitado a 8 super pontes por ano
+        // Verificar se o período FORMAL de férias tem pelo menos 5 dias
+        // O período formal inclui todos os dias, úteis ou não, dentro do intervalo de férias
+        const formalPeriodDays = differenceInDays(bridge.period.endDate, bridge.startDate) + 1;
+        
+        // Remover o limite de pontes por ano e garantir mínimo de 5 dias FORMAIS de férias
+        if (!hasOverlap && formalPeriodDays >= 5) {
+          console.log(`[LOG] Adicionando recomendação de ponte: ${format(bridge.startDate, 'dd/MM/yyyy')} a ${format(bridge.period.endDate, 'dd/MM/yyyy')} - Período formal: ${formalPeriodDays} dias`);
+          
           // Obter nome dos dias da semana para descrição
           const getDayOfWeekName = (date: Date): string => {
             const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
             return days[date.getDay()];
           };
           
-          // Verificar feriados próximos
+          // Verificar feriados próximos para encontrar os dias não úteis conectados
           const nearbyHolidays = getHolidaysInRange(
-            subDays(bridge.startDate, 3),
-            addDays(bridge.period.endDate, 3)
+            subDays(bridge.startDate, 5),
+            addDays(bridge.period.endDate, 5)
           );
           
+          // Encontrar os dias não úteis conectados antes e depois da ponte
+          let nonWorkDayBefore: Date | null = null;
+          let nonWorkDayAfter: Date | null = null;
+          
+          // Verificar dia anterior à ponte (deve ser feriado ou fim de semana)
+          const dayBefore = subDays(bridge.startDate, 1);
+          if (isHoliday(dayBefore) || isWeekend(dayBefore)) {
+            nonWorkDayBefore = dayBefore;
+          }
+          
+          // Verificar dia posterior à ponte (deve ser feriado ou fim de semana)
+          const dayAfter = addDays(bridge.period.endDate, 1);
+          if (isHoliday(dayAfter) || isWeekend(dayAfter)) {
+            nonWorkDayAfter = dayAfter;
+          }
+          
+          // Usar o período COMPLETO para a descrição (incluindo os dias não úteis conectados)
+          const fullStartDate = nonWorkDayBefore || bridge.startDate;
+          const fullEndDate = nonWorkDayAfter || bridge.period.endDate;
+          
+          // Calcular o período total real de dias
+          const totalDays = differenceInDays(fullEndDate, fullStartDate) + 1;
+          
+          // Verificar quantos dias de férias são efetivamente dias úteis
+          const workingDaysCount = bridge.workDays;
+          const nonWorkingDaysCount = formalPeriodDays - workingDaysCount;
+          
           const holidayNames = nearbyHolidays
-            .filter(h => !isWeekend(new Date(h.date))) // Focar em feriados que caem em dias úteis
+            .filter(h => {
+              const holidayDate = new Date(h.date);
+              return !isWeekend(holidayDate) && // Focar em feriados que caem em dias úteis
+                holidayDate >= fullStartDate && 
+                holidayDate <= fullEndDate;
+            })
             .map(h => h.name);
             
           const holidayInfo = holidayNames.length > 0
-            ? ` conectando ${holidayNames.join(' e ')}`
+            ? ` incluindo ${holidayNames.join(' e ')}`
             : '';
           
           // Calcular ROI em dias úteis
-          const workdayROI = (bridge.period.weekendDays + bridge.period.holidayDays) / bridge.workDays;
+          const workdayROI = nonWorkingDaysCount / workingDaysCount;
           
           // Criar recomendação
           recommendations.push({
             id: uuidv4(),
             type: 'super_bridge',
-            title: `Super Ponte ${format(bridge.startDate, 'MMM/yyyy', { locale: ptBR })}`,
-            description: `OPORTUNIDADE ÚNICA (${year}): Ponte altamente eficiente${holidayInfo} próxima ao(s) feriado(s) (sem incluí-los nas férias). Use apenas ${bridge.workDays} dia(s) útil(s) de férias e ganhe ${bridge.period.weekendDays + bridge.period.holidayDays} dia(s) não úteis (ROI: ${workdayROI.toFixed(1)} dias por dia útil). Período: ${format(bridge.startDate, 'dd/MM')} (${getDayOfWeekName(bridge.startDate)}) a ${format(bridge.period.endDate, 'dd/MM')} (${getDayOfWeekName(bridge.period.endDate)}).`,
+            title: `Ponte ${format(bridge.startDate, 'MMM/yyyy', { locale: ptBR })}`,
+            description: `${year}: Ponte estratégica${holidayInfo} próxima ao feriado. Período de férias: ${format(bridge.startDate, 'dd/MM')} a ${format(bridge.period.endDate, 'dd/MM')} (${formalPeriodDays} dias). Ganho de eficiência: ${workingDaysCount} dias úteis e ${nonWorkingDaysCount} dias não úteis. Período completo com folgas: ${format(fullStartDate, 'dd/MM')} (${getDayOfWeekName(fullStartDate)}) a ${format(fullEndDate, 'dd/MM')} (${getDayOfWeekName(fullEndDate)}).`,
             suggestedDateRange: {
               startDate: bridge.startDate,
               endDate: bridge.period.endDate
             },
             efficiencyGain: bridge.efficiency,
-            daysChanged: bridge.period.totalDays,
+            daysChanged: formalPeriodDays,
             strategicScore: bridge.strategicScore
           });
           
@@ -2780,12 +2832,16 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
           });
           
           superBridgesAdded++;
+        } else {
+          console.log(`[LOG] Rejeitando ponte: ${format(bridge.startDate, 'dd/MM/yyyy')} a ${format(bridge.period.endDate, 'dd/MM/yyyy')} - Sobreposição: ${hasOverlap}, Dias formais: ${formalPeriodDays}`);
         }
       });
       
-      console.log(`Adicionadas ${superBridgesAdded} super pontes às recomendações para o ano ${year}`);
+      console.log(`Adicionadas ${superBridgesAdded} pontes às recomendações para o ano ${year}`);
       
-      // 7.2 Selecionar pontes regulares de qualidade (até 6 por ano)
+      // Remover a seleção de pontes regulares, já que agora todas são tratadas como super pontes
+      // 7.2 Comentando esta seção para evitar duplicação, já que todas as pontes são incluídas acima
+      /*
       const regularBridges = allBridges
         .filter(bridge => !superBridges.includes(bridge)) // Excluir pontes que já estão em superBridges
         .filter(bridge => bridge.strategicScore > 3) // Critério mais permissivo
@@ -2802,54 +2858,10 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
         );
         
         if (!hasOverlap && regularBridgesAdded < 6) { // Limitado a 6 pontes regulares por ano
-          // Obter nome dos dias da semana para descrição
-          const getDayOfWeekName = (date: Date): string => {
-            const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-            return days[date.getDay()];
-          };
-          
-          // Verificar feriados próximos
-          const nearbyHolidays = getHolidaysInRange(
-            subDays(bridge.startDate, 3),
-            addDays(bridge.period.endDate, 3)
-          );
-          
-          const holidayNames = nearbyHolidays
-            .filter(h => !isWeekend(new Date(h.date))) // Focar em feriados que caem em dias úteis
-            .map(h => h.name);
-            
-          const holidayInfo = holidayNames.length > 0
-            ? ` próxima a ${holidayNames.join(' e ')}`
-            : '';
-            
-          // Calcular ROI em dias úteis
-          const workdayROI = (bridge.period.weekendDays + bridge.period.holidayDays) / bridge.workDays;
-          
-          // Criar recomendação
-          recommendations.push({
-            id: uuidv4(),
-            type: 'bridge',
-            title: `Ponte Estratégica ${format(bridge.startDate, 'MMM/yyyy', { locale: ptBR })}`,
-            description: `${year}: Aproveite esta ponte estratégica${holidayInfo} próxima ao(s) feriado(s) (sem incluí-los nas férias), usando ${bridge.workDays} dias úteis para conseguir ${bridge.period.totalDays} dias de folga total. Período: ${format(bridge.startDate, 'dd/MM')} (${getDayOfWeekName(bridge.startDate)}) a ${format(bridge.period.endDate, 'dd/MM')} (${getDayOfWeekName(bridge.period.endDate)}).`,
-            suggestedDateRange: {
-              startDate: bridge.startDate,
-              endDate: bridge.period.endDate
-            },
-            efficiencyGain: bridge.efficiency,
-            daysChanged: bridge.period.totalDays,
-            strategicScore: bridge.strategicScore
-          });
-          
-          // Adicionar à lista de períodos selecionados
-          selectedPeriods.push({
-            startDate: bridge.startDate,
-            endDate: bridge.period.endDate,
-            type: 'bridge'
-          });
-          
-          regularBridgesAdded++;
+          // ... código existente ...
         }
       });
+      */
       
       // 7.3 Adicionar estratégias para meses com alta concentração de feriados
       highHolidayMonths.forEach(month => {
@@ -3198,130 +3210,128 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
     
     console.log(`Total de recomendações geradas pelo algoritmo principal: ${recommendations.length}`);
     
-    // Se nenhuma recomendação foi gerada, usar o fallback
+    // Verificar se temos pelo menos algumas recomendações
     if (recommendations.length === 0) {
-      console.log("AVISO: Nenhuma recomendação gerada! Usando fallback...");
-      
-      // Criar recomendações de fallback para cada ano
-      years.forEach(year => {
-        const fallbackRecs = createFallbackRecommendations(year);
-        recommendations.push(...fallbackRecs);
-      });
-      
-      console.log(`Criadas ${recommendations.length} recomendações de fallback`);
+      console.warn("Nenhuma recomendação gerada pelo algoritmo principal! Usando fallback...");
+      return createFallbackRecommendations(currentYear);
     }
     
-    // 8. Ordenar recomendações finais por ano (crescente) e depois por pontuação estratégica (decrescente)
-    recommendations.sort((a, b) => {
-      // Primeiro critério: ano (crescente)
-      const yearA = a.suggestedDateRange.startDate.getFullYear();
-      const yearB = b.suggestedDateRange.startDate.getFullYear();
-      
-      if (yearA !== yearB) {
-        return yearA - yearB;
+    // Filtrar para garantir que todas as recomendações tenham pelo menos 5 dias
+    console.log(`Total de recomendações antes da filtragem por tamanho mínimo: ${recommendations.length}`);
+    const filteredRecommendations = ensureMinimumVacationDays(recommendations);
+    console.log(`Total de recomendações após a filtragem por tamanho mínimo: ${filteredRecommendations.length}`);
+    
+    // Se não houver recomendações válidas após a filtragem, retornar recomendações de fallback
+    if (filteredRecommendations.length === 0) {
+      console.warn("Nenhuma recomendação válida após filtragem! Usando fallback...");
+      return createFallbackRecommendations(currentYear);
+    }
+    
+    // Ordenar recomendações priorizando pontes e ordenando por eficiência
+    filteredRecommendations.sort((a, b) => {
+      // Primeiro ordenar por tipo (super_bridge e bridge têm prioridade)
+      if ((a.type === 'super_bridge' || a.type === 'bridge') && 
+          (b.type !== 'super_bridge' && b.type !== 'bridge')) {
+        return -1;
+      }
+      if ((b.type === 'super_bridge' || b.type === 'bridge') && 
+          (a.type !== 'super_bridge' && a.type !== 'bridge')) {
+        return 1;
       }
       
-      // Segundo critério: pontuação estratégica (decrescente)
-      const scoreA = a.strategicScore || 0;
-      const scoreB = b.strategicScore || 0;
-      
-      return scoreB - scoreA;
+      // Se ambos são do mesmo tipo ou não são pontes, ordenar por eficiência
+      return b.efficiencyGain - a.efficiencyGain;
     });
     
-    console.log(`Recomendações antes da filtragem por tamanho mínimo: ${recommendations.length}`);
-    
-    // Garantir que todas as recomendações tenham pelo menos 5 dias
-    const filteredRecommendations = ensureMinimumVacationDays(recommendations);
-    
-    console.log(`Recomendações após a filtragem por tamanho mínimo: ${filteredRecommendations.length}`);
-    
-    // Se não houver recomendações válidas após a filtragem, criar algumas recomendações de emergência
-    if (filteredRecommendations.length === 0) {
-      console.log("ATENÇÃO: Nenhuma recomendação válida após filtragem! Gerando recomendações de emergência.");
-      
-      const emergencyRecs: Recommendation[] = [];
-      
-      // Adicionar algumas recomendações de emergência para o ano atual
-      // Semana no meio do ano (7 dias)
-      const midYearStart = new Date(currentYear, 6, 15); // 15 de julho
-      const midYearEnd = addDays(midYearStart, 6);
-      
-      emergencyRecs.push({
-        id: uuidv4(),
-        type: 'optimize',
-        title: `Férias de Julho ${currentYear}`,
-        description: `${currentYear}: Período de 7 dias estratégico em julho para aproveitar o inverno.`,
-        suggestedDateRange: {
-          startDate: midYearStart,
-          endDate: midYearEnd
-        },
-        efficiencyGain: 1.3,
-        daysChanged: 7,
-        strategicScore: 7
-      });
-      
-      // Período de fim de ano (15 dias)
-      const endYearStart = new Date(currentYear, 11, 10); // 10 de dezembro
-      const endYearEnd = addDays(endYearStart, 14);
-      
-      emergencyRecs.push({
-        id: uuidv4(),
-        type: 'optimize',
-        title: `Férias de Fim de Ano ${currentYear}`,
-        description: `${currentYear}: Quinzena estratégica no fim do ano, próximo às festas.`,
-        suggestedDateRange: {
-          startDate: endYearStart,
-          endDate: endYearEnd
-        },
-        efficiencyGain: 1.4,
-        daysChanged: 15,
-        strategicScore: 8
-      });
-      
-      return emergencyRecs;
-    }
-    
-    console.log(`Retornando ${filteredRecommendations.length} recomendações finais`);
+    // Não limitar o número de recomendações
     return filteredRecommendations;
-    
   } catch (error) {
-    // Em caso de erro, sempre retornar algumas recomendações de fallback
-    console.error("ERRO ao gerar super otimizações:", error);
-    console.log("Usando recomendações de fallback devido a erro");
-    
-    let fallbackRecs: Recommendation[] = [];
-    [currentYear, currentYear + 1].forEach(year => {
-      fallbackRecs = [...fallbackRecs, ...createFallbackRecommendations(year)];
-    });
-    
-    // Garantir que todas as recomendações tenham pelo menos 5 dias
-    return ensureMinimumVacationDays(fallbackRecs);
+    console.error("Erro ao gerar super otimizações:", error);
+    return createFallbackRecommendations(currentYear);
   }
 };
 
 // Função auxiliar para garantir que todas as recomendações tenham pelo menos 5 dias
 const ensureMinimumVacationDays = (recommendations: Recommendation[]): Recommendation[] => {
+  console.log("[LOG] Iniciando verificação de tamanho mínimo para todas as recomendações...");
+  
   // Filtrar recomendações com pelo menos 5 dias de duração
   const filtered = recommendations.filter(rec => {
     const startDate = rec.suggestedDateRange.startDate;
     const endDate = rec.suggestedDateRange.endDate;
     const totalDays = differenceInDays(endDate, startDate) + 1;
     
+    console.log(`[LOG] Verificando recomendação: ${rec.title} - Período: ${format(startDate, 'dd/MM/yyyy')} a ${format(endDate, 'dd/MM/yyyy')} - Dias: ${totalDays}`);
+    
     if (totalDays < 5) {
-      console.log(`Removendo recomendação com apenas ${totalDays} dias: ${rec.title}`);
+      console.log(`[LOG] REMOVENDO recomendação com apenas ${totalDays} dias: ${rec.title} - ${format(startDate, 'dd/MM/yyyy')} a ${format(endDate, 'dd/MM/yyyy')}`);
       return false;
     }
     return true;
   });
   
+  console.log(`[LOG] Filtragem concluída: ${recommendations.length} recomendações originais, ${filtered.length} válidas após filtragem`);
   return filtered;
 };
 
 // Filter and sort all remaining recommendations by score
 export const filterAndSortRecommendations = (recommendations: Recommendation[], maxRecommendations: number): Recommendation[] => {
-  return ensureMinimumVacationDays(recommendations)
-    .sort((a, b) => getRecommendationScore(b) - getRecommendationScore(a))
-    .slice(0, maxRecommendations);
+  // Primeiro, garantir valores mínimos
+  const validRecs = ensureMinimumVacationDays(recommendations);
+  
+  // Ordenar usando múltiplos critérios para garantir que as melhores recomendações apareçam primeiro
+  return validRecs.sort((a, b) => {
+    // Definir prioridade por tipo
+    const typePriority: Record<string, number> = {
+      'optimal_hybrid': 1,      // Prioridade máxima para híbridos otimizados
+      'optimal_fraction': 2,    // Alta prioridade para fracionamento ótimo
+      'super_bridge': 3,        // Alta prioridade para super pontes
+      'hybrid_bridge_split': 4, // Alta prioridade para híbridos de ponte+fracionamento
+      'hybrid': 5,              // Prioridade para híbridos comuns
+      'bridge': 6,              // Prioridade para pontes regulares
+      'split': 7,               // Prioridade média
+      'shift': 8,               // Prioridade média-baixa
+      'extend': 9,              // Prioridade baixa
+      'error': 10,              // Prioridade mínima
+      'optimize': 11            // Prioridade mínima
+    };
+    
+    // Obter prioridade (usar 999 como fallback para tipos não definidos)
+    const priorityA = typePriority[a.type] || 999;
+    const priorityB = typePriority[b.type] || 999;
+    
+    // Primeiro ordenar por tipo de recomendação
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+    
+    // Se ambos são pontes ou super pontes, priorizar por pontuação estratégica
+    if ((a.type === 'bridge' || a.type === 'super_bridge') && 
+        (b.type === 'bridge' || b.type === 'super_bridge')) {
+      if (a.strategicScore && b.strategicScore) {
+        return b.strategicScore - a.strategicScore;
+      }
+    }
+    
+    // Para recomendações de mesmo tipo, usar pontuação estratégica se disponível
+    if (a.strategicScore && b.strategicScore) {
+      // Se a diferença for significativa
+      if (Math.abs(a.strategicScore - b.strategicScore) > 0.5) {
+        return b.strategicScore - a.strategicScore;
+      }
+    }
+    
+    // Para pontuações próximas ou inexistentes, priorizar por ganho de eficiência
+    const efficiencyDiff = b.efficiencyGain - a.efficiencyGain;
+    
+    // Se os ganhos forem próximos, considerar a quantidade de dias alterados
+    if (Math.abs(efficiencyDiff) < 0.05) {
+      // Para ganhos similares, preferir alterações menores
+      return a.daysChanged - b.daysChanged;
+    }
+    
+    return efficiencyDiff;
+  }).slice(0, maxRecommendations);
 };
 
 // Função para verificar se um período desperdiça dias formais de férias em dias não úteis
@@ -3354,4 +3364,22 @@ const countHolidaysOnWorkDays = (startDate: Date, endDate: Date): number => {
   }
   
   return count;
+};
+
+/**
+ * Calcula o ganho básico de feriados para um período (em porcentagem)
+ * Esse é o ganho real em dias de folga: feriados em dias úteis ÷ dias úteis
+ * @param period O período de férias ou o objeto com as datas de início e fim
+ * @returns Porcentagem de ganho em dias de folga
+ */
+export const calculateHolidayGain = (period: VacationPeriod | { startDate: Date, endDate: Date }): number => {
+  // Se recebemos um VacationPeriod completo, usamos seus dados
+  if ('holidayDays' in period && 'workDays' in period) {
+    return period.workDays > 0 ? Math.round((period.holidayDays / period.workDays) * 100) : 0;
+  }
+  
+  // Caso contrário, precisamos calcular os dados do período
+  const periodDetails = getVacationPeriodDetails(period.startDate, period.endDate);
+  return periodDetails.workDays > 0 ? 
+    Math.round((periodDetails.holidayDays / periodDetails.workDays) * 100) : 0;
 };

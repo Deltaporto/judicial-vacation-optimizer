@@ -1,4 +1,3 @@
-
 import { Holiday } from '@/types';
 
 // National holidays for 2024-2026
@@ -97,17 +96,129 @@ export const generateRecessPeriods = (startYear: number, endYear: number): Holid
 // Generate recess periods for 2024-2026
 export const recessPeriods: Holiday[] = generateRecessPeriods(2024, 2027);
 
+// Estado para armazenar feriados personalizados/importados
+let customHolidays: Holiday[] = [];
+
 // All holidays combined
-export const allHolidays: Holiday[] = [
-  ...nationalHolidays, 
-  ...judicialHolidays, 
-  ...recessPeriods
-];
+export const getAllHolidays = (): Holiday[] => {
+  const nacionais = [...nationalHolidays];
+  const judiciais = [...judicialHolidays];
+  const recesso = [...recessPeriods];
+  const custom = [...customHolidays];
+  
+  // Apenas para depuração, se necessário
+  // console.log(`[getAllHolidays] Feriados nacionais: ${nacionais.length}`);
+  // console.log(`[getAllHolidays] Feriados judiciais: ${judiciais.length}`);
+  // console.log(`[getAllHolidays] Períodos de recesso: ${recesso.length}`);
+  // console.log(`[getAllHolidays] Feriados personalizados: ${custom.length}`);
+  
+  // Verificar explicitamente por feriados municipais
+  const municipalHolidays = custom.filter(h => 
+    h.abrangencia && h.abrangencia.toLowerCase().includes('municipal')
+  );
+  // console.log(`[getAllHolidays] Feriados municipais (em personalizados): ${municipalHolidays.length}`);
+  
+  // Se não houver feriados municipais, isso pode indicar um problema
+  if (municipalHolidays.length === 0 && custom.length > 0) {
+    console.log("[getAllHolidays] AVISO: Não foram encontrados feriados municipais entre os personalizados!");
+  }
+  
+  const allHolidays = [
+    ...nacionais, 
+    ...judiciais, 
+    ...recesso,
+    ...custom
+  ];
+  
+  // console.log(`[getAllHolidays] Total de feriados: ${allHolidays.length}`);
+  return allHolidays;
+};
+
+// Método para obter apenas os feriados personalizados (para debugging)
+export const getCustomHolidays = (): Holiday[] => {
+  return [...customHolidays];
+};
+
+// Método para atualizar os feriados personalizados
+export const updateCustomHolidays = (holidays: Holiday[]): void => {
+  console.log("Atualizando feriados personalizados:", holidays);
+  
+  // Logs adicionais para ajudar a depurar o problema
+  console.log(`Total de feriados passados para atualização: ${holidays.length}`);
+  
+  // Verificar se há feriados municipais na lista
+  const municipalHolidays = holidays.filter(h => 
+    h.abrangencia && h.abrangencia.toLowerCase().includes('municipal')
+  );
+  console.log(`Feriados municipais sendo salvos: ${municipalHolidays.length}`);
+  
+  // Se houver feriados municipais novos, remover todos os municipais antigos
+  if (municipalHolidays.length > 0) {
+    // Verificar de qual município são os novos feriados
+    const municipalityMatch = municipalHolidays[0].abrangencia?.match(/Municipal \((.*?)\)/);
+    const selectedMunicipality = municipalityMatch ? municipalityMatch[1] : null;
+    
+    console.log(`Município detectado nos novos feriados: ${selectedMunicipality}`);
+    
+    // Remover os feriados municipais antigos e manter outros feriados personalizados
+    customHolidays = customHolidays.filter(h => 
+      !h.abrangencia || !h.abrangencia.toLowerCase().includes('municipal')
+    );
+    
+    console.log(`Feriados municipais anteriores removidos. Restantes: ${customHolidays.length}`);
+  }
+  
+  if (municipalHolidays.length > 0) {
+    console.log("Detalhes dos feriados municipais sendo salvos:");
+    municipalHolidays.forEach((h, i) => {
+      console.log(`#${i+1}: ${h.name} (${h.date}), tipo: ${h.type}, abrangência: ${h.abrangencia}`);
+    });
+  }
+  
+  // Atualiza a lista de feriados personalizados
+  customHolidays = [...customHolidays, ...holidays];
+  
+  // Verifica se os feriados foram salvos corretamente
+  console.log(`Total de feriados personalizados após atualização: ${customHolidays.length}`);
+};
+
+// Método para adicionar um novo feriado
+export const addCustomHoliday = (holiday: Holiday): void => {
+  // Verifica se o feriado já existe
+  const existingIndex = customHolidays.findIndex(h => h.date === holiday.date);
+  
+  if (existingIndex >= 0) {
+    // Substitui o feriado existente
+    customHolidays[existingIndex] = holiday;
+    console.log(`Feriado substituído: ${holiday.name} (${holiday.date})`);
+  } else {
+    // Adiciona novo feriado
+    customHolidays.push(holiday);
+    console.log(`Novo feriado adicionado: ${holiday.name} (${holiday.date})`);
+  }
+};
+
+// Método para remover um feriado personalizado
+export const removeCustomHoliday = (date: string): void => {
+  customHolidays = customHolidays.filter(h => h.date !== date);
+};
 
 // Function to check if a date is a holiday
 export const isHoliday = (date: Date): Holiday | undefined => {
   const dateStr = date.toISOString().split('T')[0];
-  return allHolidays.find(holiday => holiday.date === dateStr);
+  const allHolidays = getAllHolidays();
+  
+  // Descomente esta linha para depuração, se necessário
+  // console.log(`[DEBUG-isHoliday] Verificando se ${dateStr} é um feriado entre ${allHolidays.length} feriados`);
+  
+  const foundHoliday = allHolidays.find(holiday => holiday.date === dateStr);
+  
+  if (foundHoliday) {
+    // Descomente esta linha para depuração, se necessário
+    // console.log(`[DEBUG-isHoliday] Encontrado feriado: ${foundHoliday.name} (${foundHoliday.type})`);
+  }
+  
+  return foundHoliday;
 };
 
 // Function to check if a date is a weekend
@@ -124,8 +235,11 @@ export const getHolidaysInRange = (startDate: Date, endDate: Date): Holiday[] =>
   const end = new Date(endDate);
   end.setHours(23, 59, 59, 999);
   
-  return allHolidays.filter(holiday => {
+  return getAllHolidays().filter(holiday => {
     const holidayDate = new Date(holiday.date);
     return holidayDate >= start && holidayDate <= end;
   });
 };
+
+// Para manter compatibilidade com código existente
+export const allHolidays = getAllHolidays();
