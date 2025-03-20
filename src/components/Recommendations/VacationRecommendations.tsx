@@ -362,17 +362,22 @@ const VacationRecommendations = forwardRef<
       );
     }
 
-    // For desktop, use the existing tabs layout with responsive grid
+    // For desktop, use a more responsive layout with two rows
     return (
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-        <TabsList className="w-full grid grid-cols-7">
-          <TabsTrigger value="all">Todas</TabsTrigger>
-          <TabsTrigger value="extend">Ajustar</TabsTrigger>
-          <TabsTrigger value="shift">Deslocar</TabsTrigger>
-          <TabsTrigger value="optimize">Otimizar</TabsTrigger>
-          <TabsTrigger value="bridge">Pontes</TabsTrigger>
-          <TabsTrigger value="fraction">Fracionar</TabsTrigger>
-          <TabsTrigger value="recess">Recessos</TabsTrigger>
+        {/* Primeira linha com 4 botões */}
+        <TabsList className="w-full grid grid-cols-4 gap-1 mb-1">
+          <TabsTrigger value="all" className="px-2">Todas</TabsTrigger>
+          <TabsTrigger value="extend" className="px-2">Ajustar</TabsTrigger>
+          <TabsTrigger value="shift" className="px-2">Deslocar</TabsTrigger>
+          <TabsTrigger value="optimize" className="px-2">Otimizar</TabsTrigger>
+        </TabsList>
+        
+        {/* Segunda linha com 3 botões */}
+        <TabsList className="w-full grid grid-cols-3 gap-1">
+          <TabsTrigger value="bridge" className="px-2">Pontes</TabsTrigger>
+          <TabsTrigger value="fraction" className="px-2">Fracionar</TabsTrigger>
+          <TabsTrigger value="recess" className="px-2">Recessos</TabsTrigger>
         </TabsList>
       </Tabs>
     );
