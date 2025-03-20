@@ -408,7 +408,6 @@ const Index = () => {
         
         <p className="text-lg text-gray-600 mb-4">
           Selecione um período no calendário para visualizar a eficiência de suas férias e receber recomendações de otimização.
-          <span className="block mt-2 text-sm text-indigo-600">Por padrão, são considerados os feriados estaduais do RJ. Utilize o botão "Feriados: RJ" acima do calendário para alternar para os feriados do ES.</span>
         </p>
         
         <div className="flex items-center p-5 bg-blue-50 rounded-lg mb-8 text-blue-700 text-sm">

@@ -9,6 +9,14 @@ import {
 } from '@/components/ui/tooltip';
 import HolidayModal from '../Holidays/HolidayModal';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface HeaderProps {
   onHolidaysUpdated?: () => void;
@@ -48,31 +56,74 @@ const Header: React.FC<HeaderProps> = ({ onHolidaysUpdated }) => {
               <span>Feriados</span>
             </Button>
             
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                    <HelpCircle className="h-4 w-4" />
-                    <span>Ajuda</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs">
-                  <div className="space-y-2">
-                    <p className="font-medium">Regras do CJF implementadas:</p>
-                    <ul className="text-xs space-y-1">
-                      <li className="flex items-start">
-                        <ArrowRight className="h-3 w-3 mt-0.5 mr-1 flex-shrink-0" />
-                        <span>Mínimo de 5 dias por período (Resolução nº 940/2025)</span>
-                      </li>
-                      <li className="flex items-start">
-                        <ArrowRight className="h-3 w-3 mt-0.5 mr-1 flex-shrink-0" />
-                        <span>Total de 30 dias por semestre (60 dias anuais)</span>
-                      </li>
-                    </ul>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Dialog>
+              <DialogTrigger asChild>
+                <button className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                  <HelpCircle className="h-4 w-4" />
+                  <span>Ajuda</span>
+                </button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>Sobre o Otimizador de Férias Judiciais</DialogTitle>
+                  <DialogDescription>
+                    Uma ferramenta para auxiliar magistrados no planejamento estratégico de suas férias
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <h3 className="font-medium text-sm">Como funciona?</h3>
+                  <p className="text-sm text-gray-500">
+                    O otimizador calcula a eficiência dos períodos de férias considerando a proporção entre dias não úteis 
+                    (fins de semana e feriados) e o total de dias do período selecionado. Quanto mais dias não úteis incluídos 
+                    no seu período de férias, maior a eficiência.
+                  </p>
+                  
+                  <h3 className="font-medium text-sm mt-4">Principais funcionalidades:</h3>
+                  <ul className="text-sm text-gray-500 space-y-2">
+                    <li className="flex items-start">
+                      <ArrowRight className="h-3 w-3 mt-1 mr-2 flex-shrink-0" />
+                      <span><strong>Seleção de períodos:</strong> Clique e arraste no calendário para selecionar o período desejado.</span>
+                    </li>
+                    <li className="flex items-start">
+                      <ArrowRight className="h-3 w-3 mt-1 mr-2 flex-shrink-0" />
+                      <span><strong>Visualização de eficiência:</strong> Veja a análise detalhada com dias úteis, não úteis e eficiência calculada.</span>
+                    </li>
+                    <li className="flex items-start">
+                      <ArrowRight className="h-3 w-3 mt-1 mr-2 flex-shrink-0" />
+                      <span><strong>Recomendações personalizadas:</strong> Receba sugestões para otimizar suas férias com base no período selecionado.</span>
+                    </li>
+                    <li className="flex items-start">
+                      <ArrowRight className="h-3 w-3 mt-1 mr-2 flex-shrink-0" />
+                      <span><strong>Super Otimizações:</strong> Descubra automaticamente os melhores períodos do ano sem precisar testar manualmente.</span>
+                    </li>
+                    <li className="flex items-start">
+                      <ArrowRight className="h-3 w-3 mt-1 mr-2 flex-shrink-0" />
+                      <span><strong>Fracionamento de férias:</strong> Analise como dividir suas férias pode aumentar a eficiência total.</span>
+                    </li>
+                    <li className="flex items-start">
+                      <ArrowRight className="h-3 w-3 mt-1 mr-2 flex-shrink-0" />
+                      <span><strong>Configuração de feriados:</strong> Alterne entre feriados do RJ e ES para cálculos mais precisos conforme sua localidade.</span>
+                    </li>
+                  </ul>
+                  
+                  <h3 className="font-medium text-sm mt-4">Regras implementadas:</h3>
+                  <ul className="text-sm text-gray-500 space-y-2">
+                    <li className="flex items-start">
+                      <ArrowRight className="h-3 w-3 mt-1 mr-2 flex-shrink-0" />
+                      <span>Mínimo de 5 dias por período (Resolução nº 940/2025)</span>
+                    </li>
+                    <li className="flex items-start">
+                      <ArrowRight className="h-3 w-3 mt-1 mr-2 flex-shrink-0" />
+                      <span>Total de 30 dias por semestre (60 dias anuais)</span>
+                    </li>
+                    <li className="flex items-start">
+                      <ArrowRight className="h-3 w-3 mt-1 mr-2 flex-shrink-0" />
+                      <span>Por padrão, são considerados os feriados estaduais do RJ. Utilize o botão "Feriados: RJ" para alternar para os feriados do ES.</span>
+                    </li>
+                  </ul>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </header>
