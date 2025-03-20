@@ -5,13 +5,14 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  DialogClose
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, Plus, Trash2, X } from 'lucide-react';
+import { Calendar, Plus, Trash2, X, Info, AlertTriangle } from 'lucide-react';
 import { Holiday } from '@/types';
 import { 
   getAllHolidays, 
@@ -25,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface HolidayModalProps {
   open: boolean;
@@ -268,6 +270,14 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
             Visualize, adicione, remova ou importe feriados para o planejador de férias.
           </DialogDescription>
         </DialogHeader>
+        
+        <Alert className="my-3">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Informação sobre feriados</AlertTitle>
+          <AlertDescription>
+            Por padrão, são importados os feriados estaduais do RJ. Os feriados municipais devem ser adicionados manualmente nesta tela.
+          </AlertDescription>
+        </Alert>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
           <TabsList className="grid grid-cols-3">

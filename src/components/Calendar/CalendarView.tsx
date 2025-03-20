@@ -294,17 +294,81 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-scale-in">
       {/* Calendar header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-100">
-        <div className="flex items-center space-x-2">
-          <CalendarIcon className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-medium">
-            {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-          </h2>
+      <div className="p-4 border-b border-gray-100">
+        {/* Título e botões de navegação do mês em uma linha */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <CalendarIcon className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-medium">
+              {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+            </h2>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-8 w-8" 
+              onClick={goToPreviousMonth}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-8 w-8" 
+              onClick={goToNextMonth}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
-        <div className="flex items-center space-x-2">
-          {/* Botão para limpar seleção - só aparece quando há um período completo selecionado */}
-          {hasCompletePeriod && onClearSelection && (
+        {/* Botões de funcionalidades em uma linha separada */}
+        <div className="flex items-center justify-between">
+          {/* Botão para alternar feriados estaduais (lado esquerdo) */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => alert("Alternando entre feriados do RJ e ES - Funcionalidade em implementação")}
+                  className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                >
+                  <span>Feriados: RJ</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-[250px] z-50">
+                Alternar entre feriados estaduais do RJ e ES
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <div className="flex items-center space-x-2">
+            {/* Botão de feriados no meio */}
+            {onOpenHolidayModal && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onOpenHolidayModal}
+                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                    >
+                      <CalendarIcon className="h-4 w-4 mr-1" />
+                      <span>Feriados</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    Visualizar e gerenciar feriados
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            
+            {/* Botão para limpar seleção - sempre mostra, mas desabilitado quando não há seleção */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -312,7 +376,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={handleClearSelection}
-                    className="text-red-600 border-red-200 hover:bg-red-50"
+                    disabled={!hasCompletePeriod || !onClearSelection}
+                    className={`${hasCompletePeriod ? 'text-red-600 border-red-200 hover:bg-red-50' : 'text-gray-400 border-gray-200'}`}
                   >
                     <X className="h-4 w-4 mr-1" />
                     <span>Limpar</span>
@@ -323,46 +388,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          )}
-          
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="h-8 w-8" 
-            onClick={goToPreviousMonth}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="h-8 w-8" 
-            onClick={goToNextMonth}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          
-          {/* Botão de feriados */}
-          {onOpenHolidayModal && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onOpenHolidayModal}
-                    className="ml-2 text-blue-600 border-blue-200 hover:bg-blue-50"
-                  >
-                    <CalendarIcon className="h-4 w-4 mr-1" />
-                    <span>Feriados</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  Visualizar e gerenciar feriados
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
+          </div>
         </div>
       </div>
       
@@ -408,6 +434,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           <div className="h-3 w-3 rounded-full bg-blue-100 mr-2" />
           <span>Fim de Semana</span>
         </div>
+      </div>
+      
+      {/* Nota sobre feriados estaduais */}
+      <div className="px-4 py-2 border-t border-gray-100 text-xs text-gray-500 flex items-center">
+        <Info className="h-3 w-3 mr-1 flex-shrink-0" />
+        <span>Por padrão, são importados os feriados estaduais do RJ. Feriados municipais devem ser incluídos clicando em "Feriados".</span>
       </div>
     </div>
   );
