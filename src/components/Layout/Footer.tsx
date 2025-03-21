@@ -16,11 +16,11 @@ const Footer = () => {
           
           <div className="flex items-center space-x-4">
             <div className="text-xs px-3 py-1 bg-white rounded-full border border-gray-200 shadow-sm">
-              Processamento 100% local
+              Os algoritmos ainda estão em desenvolvimento
             </div>
             
             <a 
-              href="https://www.cjf.jus.br/cjf/noticias/2022/09/cjf-aprova-resolucao-que-regulamenta-ferias-de-magistrados-federais"
+              href="https://www.cjf.jus.br/publico/biblioteca/Res%20764-2022.pdf"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs flex items-center text-primary hover:text-primary/80 transition-colors"

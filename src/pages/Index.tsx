@@ -12,8 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { generateRecommendations } from '@/utils/efficiencyUtils';
-import { Lightbulb } from 'lucide-react';
+import { Lightbulb, Info } from 'lucide-react';
 import HolidayModal from '@/components/Holidays/HolidayModal';
+import { testHybridRecommendations } from '@/utils/test-hybrid-recommendations';
 
 const Index = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -33,6 +34,9 @@ const Index = () => {
   const [calendarKey, setCalendarKey] = useState<number>(0);
   // Adicionar referência para o componente VacationRecommendations
   const vacationRecommendationsRef = useRef<any>(null);
+  
+  // Adicionar estado para controlar se estamos em uma estratégia híbrida
+  const [isHybridStrategy, setIsHybridStrategy] = useState(false);
   
   // Update vacation period when date range changes
   useEffect(() => {
@@ -120,8 +124,35 @@ const Index = () => {
   };
   
   // Handle recommendation selection
-  const handleRecommendationSelect = (dateRange: DateRange, recommendationType?: string) => {
-    // Special handling for hybrid recommendation
+  const handleRecommendationSelect = (dateRange: DateRange, recommendationType?: string, fullRecommendation?: Recommendation) => {
+    // Para estratégias híbridas com fracionamento
+    if ((recommendationType === 'hybrid' || recommendationType === 'hybrid_bridge_split') && 
+        fullRecommendation && fullRecommendation.fractionedPeriods && 
+        fullRecommendation.fractionedPeriods.length > 0) {
+        
+        // Aplicar o primeiro período como principal
+        setDateRange({
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate
+        });
+        
+        // Aplicar os períodos fracionados
+        setSplitPeriods(fullRecommendation.fractionedPeriods.map(period => ({
+          startDate: period.startDate,
+          endDate: period.endDate
+        })));
+        
+        // Marcar como estratégia híbrida
+        setIsHybridStrategy(true);
+        
+        // Atualizar o mês do calendário para o mês do período recomendado
+        setCalendarKey(prev => prev + 1);
+        
+        showSuccess('Estratégia híbrida aplicada com sucesso!');
+        return;
+    }
+    
+    // Special handling for hybrid recommendation (fallback para método anterior)
     if (recommendationType === 'hybrid' && dateRange.description) {
       // Verificar se a descrição contém padrões que indicam um fracionamento
       const hasSplitPattern = /Divida suas férias em dois períodos/.test(dateRange.description);
@@ -360,6 +391,7 @@ const Index = () => {
     setIsRangeComplete(false);
     setSplitVacations(null);
     setSplitPeriods([]);
+    setIsHybridStrategy(false); // Resetar também o estado da estratégia híbrida
     
     // Mostrar toast informando que a seleção foi limpa
     toast({
@@ -456,11 +488,15 @@ const Index = () => {
                   </div>
                   
                   <TabsContent value="single" className="p-0">
-                    <EfficiencyCalculator vacationPeriod={vacationPeriod} />
+                    <EfficiencyCalculator 
+                      vacationPeriod={vacationPeriod} 
+                      isHybrid={isHybridStrategy && splitPeriods.length > 0}
+                      fractionedPeriods={isHybridStrategy ? splitPeriods.map(period => getVacationPeriodDetails(period.startDate, period.endDate)) : []}
+                    />
                   </TabsContent>
                   
                   <TabsContent value="split" className="p-0">
-                    {splitVacations && (
+                    {!isHybridStrategy && splitVacations && (
                       <EfficiencyCalculator 
                         vacationPeriod={null}
                         fractionedPeriods={[
@@ -472,7 +508,7 @@ const Index = () => {
                     )}
                     
                     {/* Display single split period */}
-                    {!splitVacations && splitPeriod && (
+                    {!isHybridStrategy && !splitVacations && splitPeriod && (
                       <>
                         {/* Get vacation period details for the split period */}
                         {vacationPeriod && (
@@ -486,6 +522,14 @@ const Index = () => {
                           />
                         )}
                       </>
+                    )}
+                    
+                    {/* Display hybrid strategy analysis in split tab */}
+                    {isHybridStrategy && (
+                      <div className="p-6 text-center text-gray-500">
+                        <Info className="h-8 w-8 mx-auto mb-2 text-blue-400" />
+                        <p>A análise da estratégia híbrida está disponível na aba "Período Único".</p>
+                      </div>
                     )}
                   </TabsContent>
                   
@@ -511,6 +555,15 @@ const Index = () => {
           
           {/* Right column - Recommendations */}
           <div className="lg:col-span-1">
+            {/* Botão temporário para teste */}
+            {process.env.NODE_ENV === 'development' && (
+              <button
+                onClick={() => testHybridRecommendations()}
+                className="mb-4 px-4 py-2 bg-purple-100 text-purple-700 rounded-md text-sm hover:bg-purple-200"
+              >
+                Testar Estratégias Híbridas
+              </button>
+            )}
             <VacationRecommendations 
               vacationPeriod={isRangeComplete ? vacationPeriod : null}
               onRecommendationSelect={handleRecommendationSelect}

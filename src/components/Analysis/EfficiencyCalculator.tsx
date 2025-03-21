@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { VacationPeriod, EfficiencyBreakdown } from '@/types';
 import { formatDate } from '@/utils/dateUtils';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
@@ -14,25 +14,80 @@ import {
   Trophy,
   Star,
   AlertCircle,
-  ChevronRight
+  ChevronRight,
+  Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { generateICSFile, downloadFile } from '@/utils/dateUtils';
 import { differenceInDays } from 'date-fns';
 import { calculateAdjustedEfficiency, calculateHolidayGain } from '@/utils/efficiencyUtils';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface EfficiencyCalculatorProps {
   vacationPeriod: VacationPeriod | null;
   fractionedPeriods?: VacationPeriod[];
   isFractionated?: boolean;
+  isHybrid?: boolean;
 }
 
 const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({ 
   vacationPeriod, 
   fractionedPeriods = [], 
-  isFractionated = false 
+  isFractionated = false,
+  isHybrid = false
 }) => {
+  // Estado para controlar a aba ativa na visualização híbrida
+  const [activeTab, setActiveTab] = useState<string>("combined");
+  
+  // Estado para armazenar a largura da tela
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 1200
+  );
+
+  // Efeito para atualizar a largura da tela quando a janela for redimensionada
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    // Verificar se estamos no navegador
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      
+      // Limpeza
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, []);
+  
+  // Função para formatar as legendas com base na largura da tela
+  const formatLegendText = (value: string) => {
+    if (windowWidth < 480) {
+      // Abreviar para a menor forma possível
+      if (value === 'Dias Úteis') return 'D.U';
+      if (value === 'Fins de Semana') return 'FDS';
+      if (value === 'Feriados em Dias Úteis') return 'Fd';
+    } else if (windowWidth < 640) {
+      // Abreviar moderadamente
+      if (value === 'Dias Úteis') return 'D. Úteis';
+      if (value === 'Fins de Semana') return 'F. Semana';
+      if (value === 'Feriados em Dias Úteis') return 'Feriados';
+    }
+    return value;
+  };
+  
+  // Função para formatar o texto do label do gráfico
+  const formatPieLabel = (name: string, percent: number) => {
+    const displayName = windowWidth < 480 
+      ? name.split(' ').map(word => word[0]).join('') // Apenas a primeira letra de cada palavra
+      : windowWidth < 640 
+      ? name.split(' ')[0] // Apenas a primeira palavra
+      : name;
+    return `${displayName} ${(percent * 100).toFixed(0)}%`;
+  };
+  
   // Função para detectar e remover sobreposições entre períodos
   const removePeriodOverlaps = (periods: VacationPeriod[]): VacationPeriod[] => {
     if (!periods || periods.length <= 1) return periods;
@@ -315,15 +370,24 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
                   outerRadius={70}
                   paddingAngle={2}
                   dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => formatPieLabel(name, percent)}
                   labelLine={true}
                 >
                   {data.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Legend verticalAlign="bottom" height={36} />
-                <Tooltip />
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36} 
+                  layout="horizontal"
+                  formatter={(value) => formatLegendText(value)}
+                  wrapperStyle={{
+                    fontSize: windowWidth < 640 ? '10px' : '12px',
+                    paddingTop: '10px'
+                  }}
+                />
+                <Tooltip formatter={(value) => [value, '']} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -429,7 +493,86 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
     );
   };
   
+  // Render Hybrid Strategy Analysis (Nova Função)
+  const renderHybridAnalysis = () => {
+    // Validar se temos períodos fracionados
+    if (!fractionedPeriods || fractionedPeriods.length === 0) {
+      return renderPeriodAnalysis(vacationPeriod!);
+    }
+
+    // Período completo
+    const combinedPeriod = vacationPeriod;
+    
+    // Períodos fracionados
+    const validPeriods = fractionedPeriods.filter(Boolean);
+    
+    return (
+      <div>
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+          <div className="font-medium text-blue-800 mb-2 flex items-center">
+            <Layers className="h-4 w-4 mr-2" />
+            Estratégia Híbrida: Antecipar + Fracionar
+          </div>
+          <p className="text-sm text-blue-700">
+            Esta estratégia combina a antecipação do período com o fracionamento para maximizar a eficiência.
+            Use as abas abaixo para visualizar a análise do período completo ou de cada parte fracionada.
+          </p>
+        </div>
+        
+        <Tabs defaultValue="combined" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="w-full mb-6">
+            <TabsTrigger value="combined">Período Completo</TabsTrigger>
+            {validPeriods.map((_, index) => (
+              <TabsTrigger key={index} value={`period-${index}`}>
+                Período {index + 1}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          
+          <TabsContent value="combined">
+            {combinedPeriod && renderPeriodAnalysis(combinedPeriod)}
+          </TabsContent>
+          
+          {validPeriods.map((period, index) => (
+            <TabsContent key={index} value={`period-${index}`}>
+              {renderPeriodAnalysis(period, index)}
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
+    );
+  };
+  
   // Handle the different rendering modes
+  if (isHybrid && vacationPeriod) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-scale-in">
+        <div className="p-6 border-b border-gray-100">
+          <h2 className="text-lg font-medium flex items-center">
+            Análise de Estratégia Híbrida
+            <span className={`ml-2 text-sm px-2 py-0.5 rounded-full bg-blue-100 text-blue-600`}>
+              Combinada
+            </span>
+          </h2>
+        </div>
+        
+        <div className="p-6">
+          {renderHybridAnalysis()}
+        </div>
+        
+        <div className="p-4 border-t border-gray-100 bg-gray-50 text-xs text-gray-500">
+          <div className="flex items-start">
+            <Info className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+            <p>
+              As estratégias híbridas combinam diferentes abordagens para maximizar sua eficiência.
+              Aqui você pode analisar tanto o período completo quanto cada um dos períodos fracionados.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   if (isFractionated && fractionedPeriods.length > 0) {
     // Filter out any null or undefined periods
     const validPeriods = fractionedPeriods.filter(Boolean);

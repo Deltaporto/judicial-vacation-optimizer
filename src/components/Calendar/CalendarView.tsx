@@ -3,7 +3,7 @@ import { format, getMonth, getYear, addMonths, subMonths, isSameMonth, isSameDay
 import { ptBR } from 'date-fns/locale';
 import { CalendarDay, DateRange, Holiday, ViewMode } from '@/types';
 import { getCalendarDays } from '@/utils/dateUtils';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, X, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
   Tooltip,
@@ -173,6 +173,47 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const isRangeValid = (range: DateRange | null): boolean => {
     if (!range) return true;
     return isValidVacationPeriod(range.startDate, range.endDate).isValid;
+  };
+  
+  // Handle export calendar event
+  const handleExportCalendarEvent = () => {
+    if (!selectedRange || !selectedRange.startDate || !selectedRange.endDate) return;
+    
+    // Formato da data para ICS: YYYYMMDD
+    const formatDateForICS = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}${month}${day}`;
+    };
+    
+    // Criar conteúdo do arquivo ICS
+    const startDate = formatDateForICS(selectedRange.startDate);
+    const endDate = formatDateForICS(new Date(selectedRange.endDate.getTime() + 24 * 60 * 60 * 1000)); // Adiciona 1 dia para inclusão da data final
+    
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Planejador de Férias Judiciais//BR
+BEGIN:VEVENT
+SUMMARY:Férias
+DTSTART;VALUE=DATE:${startDate}
+DTEND;VALUE=DATE:${endDate}
+DESCRIPTION:Período de férias judiciais
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+END:VCALENDAR`;
+    
+    // Criar um blob e fazer download
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ferias_${startDate}_${endDate}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
   
   // Render month view
@@ -367,6 +408,27 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 </Tooltip>
               </TooltipProvider>
             )}
+            
+            {/* Botão para exportar para calendário */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportCalendarEvent}
+                    disabled={!hasCompletePeriod}
+                    className={`${hasCompletePeriod ? 'text-indigo-600 border-indigo-200 hover:bg-indigo-50' : 'text-gray-400 border-gray-200'}`}
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    <span>Exportar</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Exportar período para calendário iOS/Android
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
             {/* Botão para limpar seleção - sempre mostra, mas desabilitado quando não há seleção */}
             <TooltipProvider>

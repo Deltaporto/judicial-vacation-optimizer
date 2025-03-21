@@ -6,6 +6,23 @@ import { v4 as uuidv4 } from 'uuid';
 import { ptBR } from 'date-fns/locale';
 
 /**
+ * Verifica se dois intervalos de datas têm sobreposição
+ * @param startA Data de início do primeiro intervalo
+ * @param endA Data de fim do primeiro intervalo
+ * @param startB Data de início do segundo intervalo
+ * @param endB Data de fim do segundo intervalo
+ * @returns true se houver sobreposição, false caso contrário
+ */
+const dateRangesOverlap = (
+  startA: Date, 
+  endA: Date, 
+  startB: Date, 
+  endB: Date
+): boolean => {
+  return startA <= endB && startB <= endA;
+};
+
+/**
  * Encontra dias com potencial para extensão de férias, identificando
  * clusters de feriados e fins de semana adjacentes, mas ignorando
  * fins de semana isolados que não trariam benefício real
@@ -1806,7 +1823,6 @@ export const generateRecommendations = (vacationPeriod: VacationPeriod): Recomme
             // Determinar o tipo de híbrido baseado nos componentes
             let hybridType = 'hybrid';
             
-            // Verificar se temos um híbrido especial de ponte + fracionamento
             if ((primary.type === 'super_bridge' || primary.type === 'bridge') && 
                 (secondary.type === 'split' || secondary.type === 'optimal_fraction')) {
               hybridType = 'hybrid_bridge_split';
@@ -1815,184 +1831,56 @@ export const generateRecommendations = (vacationPeriod: VacationPeriod): Recomme
               hybridType = 'hybrid_bridge_split';
             }
             
-            // Criar título e descrição apropriados
-            let hybridTitle = `Estratégia combinada: ${primary.title} + ${secondary.title}`;
-            let hybridDescription = '';
-            
-            // Função auxiliar para verificar e garantir a consistência dos dias da semana
-            const getDayOfWeekName = (date: Date): string => {
-              const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-              return days[date.getDay()];
-            };
-            
-            // Verificar combinações específicas que precisam de tratamento especial
-            if (primary.type === 'shift' && secondary.type === 'split') {
-              // Caso especial para "Antecipar período + Fracionar período"
-              const shiftedStart = primary.suggestedDateRange.startDate;
-              const shiftedEnd = primary.suggestedDateRange.endDate;
-              
-              // Calcular pontos de fracionamento baseados no período deslocado (não no original)
-              const splitPeriods = secondary.fractionedPeriods || [];
-              
-              // Se não temos informações de fracionamento, usar descrições genéricas
-              if (splitPeriods.length < 2) {
-                hybridDescription = `Aproveite os benefícios de duas estratégias: ${primary.description} Depois, divida este período em partes para maior flexibilidade.`;
-              } else {
-                // Usar informações específicas do período deslocado
-                const firstPart = splitPeriods[0];
-                const secondPart = splitPeriods[1];
-                
-                // Garantir que os dias da semana estejam corretos
-                const startDayName = getDayOfWeekName(shiftedStart);
-                const endDayName = getDayOfWeekName(shiftedEnd);
-                
-                // Garantir que os dias da semana das partes também estejam corretos
-                const firstPartStartDayName = getDayOfWeekName(firstPart.startDate);
-                const firstPartEndDayName = getDayOfWeekName(firstPart.endDate);
-                const secondPartStartDayName = getDayOfWeekName(secondPart.startDate);
-                const secondPartEndDayName = getDayOfWeekName(secondPart.endDate);
-                
-                // Contar dias não úteis em cada parte
-                const firstPartNonWork = firstPart.weekendDays + firstPart.holidayDays;
-                const secondPartNonWork = secondPart.weekendDays + secondPart.holidayDays;
-                
-                // Construir descrição completa e precisa
-                hybridDescription = `Aproveite os benefícios de duas estratégias: Antecipe todo o período para ${format(shiftedStart, 'dd/MM')} (${startDayName}) a ${format(shiftedEnd, 'dd/MM')} (${endDayName}) aproveitando ${primary.description.match(/\d+ dias? não úteis/)?.[0] || 'vários dias não úteis'} Depois, Divida suas férias em dois períodos para maior flexibilidade: ${format(firstPart.startDate, 'dd/MM')} (${firstPartStartDayName}) a ${format(firstPart.endDate, 'dd/MM')} (${firstPartEndDayName}) (${firstPartNonWork} dias não úteis) e ${format(secondPart.startDate, 'dd/MM')} (${secondPartStartDayName}) a ${format(secondPart.endDate, 'dd/MM')} (${secondPartEndDayName}) (${secondPartNonWork} dias não úteis)`;
-              }
-            } else if (primary.type === 'extend' && secondary.type === 'split') {
-              // Combinação "Estender período + Fracionar período"
-              hybridDescription = `Aproveite os benefícios de duas estratégias: ${primary.description} 
-                Depois, divida este período estendido em partes para maior flexibilidade.`;
-            } else if (hybridType === 'hybrid_bridge_split') {
-              // Combinação especial de ponte + fracionamento
-              hybridTitle = 'Estratégia Ideal: Ponte + Fracionamento';
-              
-              const bridgeRec = primary.type.includes('bridge') ? primary : secondary;
-              const splitRec = primary.type.includes('split') ? primary : secondary;
-              
-              hybridDescription = `Maximize seu tempo livre: Primeiro ${bridgeRec.description} 
-                Depois complemente com fracionamento para maior flexibilidade.`;
-            } else {
-              // Caso padrão para outras combinações
-              hybridDescription = `Aproveite os benefícios de duas estratégias: ${primary.description} Depois, ${secondary.description}`;
-            }
-            
-            // Calcular ganho de eficiência ajustado
-            // Normalmente não somamos completamente, pois há sobreposição de benefícios
-            let adjustedGain = Math.min(combinedGain * 0.85, 0.5); // Cap em 50% de ganho, 85% do total combinado
-            
-            // Bônus extra para ponte + fracionamento
-            if (hybridType === 'hybrid_bridge_split') {
-              adjustedGain *= 1.15; // Bônus de 15% para esta combinação específica
-            }
-            
-            // Criar pontuação estratégica base
-            let baseStrategicScore = (rec1.strategicScore || 0) + (rec2.strategicScore || 0);
-            
-            // Bônus para ponte + fracionamento
-            if (hybridType === 'hybrid_bridge_split') {
-              baseStrategicScore *= 1.2; // Bônus de 20% para esta combinação
-            }
-            
-            // Criar recomendação híbrida
+            // Criar recomendação híbrida base
             const hybridRecommendation: Recommendation = {
               id: uuidv4(),
-              type: hybridType as any, // Usar o tipo específico determinado
-              title: hybridTitle,
-              description: hybridDescription,
+              type: hybridType,
+              title: `Estratégia combinada: ${primary.title} + ${secondary.title}`,
+              description: '',
               suggestedDateRange: primary.suggestedDateRange,
-              efficiencyGain: adjustedGain,
+              efficiencyGain: combinedGain * 0.85,
               daysChanged: primary.daysChanged + secondary.daysChanged,
-              strategicScore: baseStrategicScore
+              strategicScore: (primary.strategicScore || 0) + (secondary.strategicScore || 0)
             };
             
-            // Para combinações de shift+split ou extend+split, precisamos ajustar os períodos fracionados
+            // Garantir que temos períodos fracionados quando necessário
             if ((primary.type === 'shift' || primary.type === 'extend') && 
                 (secondary.type === 'split' || secondary.type === 'optimal_fraction')) {
-              // Aqui precisamos garantir que os períodos fracionados sejam calculados
-              // com base no período já deslocado ou estendido, não o original
+              const newPeriods = calculateFractionedPeriods(
+                primary.suggestedDateRange.startDate,
+                primary.suggestedDateRange.endDate
+              );
+              
+              hybridRecommendation.fractionedPeriods = newPeriods;
+              
+              const firstPeriod = newPeriods[0];
+              const secondPeriod = newPeriods[1];
+              
+              const getDayName = (date: Date): string => {
+                const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+                return days[date.getDay()];
+              };
+              
+              hybridRecommendation.description = `Aproveite os benefícios de duas estratégias: ${primary.description} Depois, divida o período em duas partes: ${format(firstPeriod.startDate, 'dd/MM')} (${getDayName(firstPeriod.startDate)}) a ${format(firstPeriod.endDate, 'dd/MM')} (${getDayName(firstPeriod.endDate)}) e ${format(secondPeriod.startDate, 'dd/MM')} (${getDayName(secondPeriod.startDate)}) a ${format(secondPeriod.endDate, 'dd/MM')} (${getDayName(secondPeriod.endDate)})`;
+            } else if (secondary.type === 'split' || secondary.type === 'optimal_fraction') {
               if (secondary.fractionedPeriods && secondary.fractionedPeriods.length > 0) {
-                // Determinamos a mudança de datas entre o período original e o modificado
-                const originalStartDate = vacationPeriod.startDate;
-                const originalEndDate = vacationPeriod.endDate;
-                const newStartDate = primary.suggestedDateRange.startDate;
-                const newEndDate = primary.suggestedDateRange.endDate;
-                
-                // Calculamos quantos dias foram deslocados/estendidos
-                const startOffset = differenceInDays(newStartDate, originalStartDate);
-                const endOffset = differenceInDays(newEndDate, originalEndDate);
-                
-                // Aqui vamos realmente calcular novos períodos fracionados baseados na nova janela
-                if (secondary.type === 'split' && secondary.fractionedPeriods.length >= 2) {
-                  // Se for um split simples, fazemos um fracionamento do novo período
-                  const totalDays = differenceInDays(newEndDate, newStartDate) + 1;
-                  const middlePoint = Math.floor(totalDays / 2);
-                  
-                  // Cria dois períodos com base no período deslocado ou estendido
-                  const midDate = addDays(newStartDate, middlePoint - 1);
-                  
-                  // Usar getVacationPeriodDetails para obter informações completas
-                  const firstPeriodNew = getVacationPeriodDetails(newStartDate, midDate);
-                  const secondPeriodNew = getVacationPeriodDetails(addDays(midDate, 1), newEndDate);
-                  
-                  // Atualizar para os novos períodos calculados
-                  hybridRecommendation.fractionedPeriods = [firstPeriodNew, secondPeriodNew];
-                  
-                  // Atualizar a descrição para usar as novas datas corretas
-                  if (hybridRecommendation.type === 'hybrid' && 
-                      (primary.type === 'shift' || primary.type === 'extend') && 
-                      secondary.type === 'split') {
-                    // Obter nomes dos dias da semana
-                    const getDayName = (date: Date): string => {
-                      const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-                      return days[date.getDay()];
-                    };
-                    
-                    // Calcular dias não úteis em cada novo período fracionado
-                    const firstNonWorkDays = firstPeriodNew.weekendDays + firstPeriodNew.holidayDays;
-                    const secondNonWorkDays = secondPeriodNew.weekendDays + secondPeriodNew.holidayDays;
-                    
-                    // Construir a descrição detalhada e precisa
-                    const actionVerb = primary.type === 'shift' ? 
-                      (startOffset < 0 ? 'Antecipe' : 'Adie') : 'Estenda';
-                    
-                    hybridRecommendation.description = `Aproveite os benefícios de duas estratégias: ${actionVerb} todo o período para ${format(newStartDate, 'dd/MM')} (${getDayName(newStartDate)}) a ${format(newEndDate, 'dd/MM')} (${getDayName(newEndDate)}) aproveitando ${primary.description.match(/\d+ dias? não úteis/)?.[0] || 'dias não úteis'} Depois, Divida suas férias em dois períodos para maior flexibilidade: ${format(firstPeriodNew.startDate, 'dd/MM')} (${getDayName(firstPeriodNew.startDate)}) a ${format(firstPeriodNew.endDate, 'dd/MM')} (${getDayName(firstPeriodNew.endDate)}) (${firstNonWorkDays} dias não úteis) e ${format(secondPeriodNew.startDate, 'dd/MM')} (${getDayName(secondPeriodNew.startDate)}) a ${format(secondPeriodNew.endDate, 'dd/MM')} (${getDayName(secondPeriodNew.endDate)}) (${secondNonWorkDays} dias não úteis)`;
-                  }
-                } else {
-                  // Para outros casos, tentamos aplicar a mesma transformação de data
-                  const adjustedPeriods = secondary.fractionedPeriods.map(period => {
-                    // Aplicamos o mesmo deslocamento relativo ao original
-                    const newPeriodStart = addDays(period.startDate, startOffset);
-                    const newPeriodEnd = addDays(period.endDate, endOffset);
-                    
-                    // Calculamos um novo período com base nas novas datas
-                    return getVacationPeriodDetails(newPeriodStart, newPeriodEnd);
-                  });
-                  
-                  // Verificamos e filtramos períodos inválidos
-                  const validPeriods = adjustedPeriods.filter(p => p.isValid);
-                  
-                  // Atualizamos apenas se houver períodos válidos
-                  if (validPeriods.length > 0) {
-                    hybridRecommendation.fractionedPeriods = validPeriods;
-                  }
-                }
+                hybridRecommendation.fractionedPeriods = [...secondary.fractionedPeriods];
+              } else {
+                // Calcular novos períodos fracionados se não disponíveis
+                hybridRecommendation.fractionedPeriods = calculateFractionedPeriods(
+                  secondary.suggestedDateRange.startDate,
+                  secondary.suggestedDateRange.endDate
+                );
               }
-            } else if (secondary.fractionedPeriods) {
-              // Copiar dados de fracionamento se existirem na recomendação secundária
-              hybridRecommendation.fractionedPeriods = [...secondary.fractionedPeriods];
-            } else if (primary.fractionedPeriods) {
-              // Copiar dados de fracionamento se existirem na recomendação primária
-              hybridRecommendation.fractionedPeriods = [...primary.fractionedPeriods];
+              
+              hybridRecommendation.description = `${primary.description} Em seguida, ${secondary.description}`;
+            } else {
+              // Para outros tipos de híbridos, manter a descrição simples
+              hybridRecommendation.description = `${primary.description} Em seguida, ${secondary.description}`;
             }
             
-            // Verificar sobreposição com recesso judicial
-            if (!overlapsWithJudicialRecess(
-              hybridRecommendation.suggestedDateRange.startDate,
-              hybridRecommendation.suggestedDateRange.endDate
-            )) {
-              hybridRecommendations.push(hybridRecommendation);
-            }
+            // Adicionar à lista de recomendações híbridas
+            hybridRecommendations.push(hybridRecommendation);
           }
         }
       }
@@ -3382,4 +3270,54 @@ export const calculateHolidayGain = (period: VacationPeriod | { startDate: Date,
   const periodDetails = getVacationPeriodDetails(period.startDate, period.endDate);
   return periodDetails.workDays > 0 ? 
     Math.round((periodDetails.holidayDays / periodDetails.workDays) * 100) : 0;
+};
+
+// Função auxiliar para calcular períodos fracionados
+const calculateFractionedPeriods = (startDate: Date, endDate: Date): VacationPeriod[] => {
+  const totalDays = differenceInDays(endDate, startDate) + 1;
+  const middlePoint = Math.floor(totalDays / 2);
+  
+  const midDate = addDays(startDate, middlePoint - 1);
+  const firstPeriod = getVacationPeriodDetails(startDate, midDate);
+  const secondPeriod = getVacationPeriodDetails(addDays(midDate, 1), endDate);
+  
+  return [firstPeriod, secondPeriod];
+};
+
+// Função para validar recomendações híbridas
+const validateHybridRecommendation = (rec: Recommendation): boolean => {
+  if (rec.suggestedDateRange.startDate > rec.suggestedDateRange.endDate) {
+    console.log('Período principal inválido');
+    return false;
+  }
+
+  if ((rec.type === 'hybrid' || rec.type === 'hybrid_bridge_split') &&
+      (!rec.fractionedPeriods || rec.fractionedPeriods.length === 0)) {
+    console.log('Recomendação híbrida sem períodos fracionados');
+    return false;
+  }
+
+  if (rec.fractionedPeriods) {
+    const invalidPeriods = rec.fractionedPeriods.filter(p => !p.isValid);
+    if (invalidPeriods.length > 0) {
+      console.log('Períodos fracionados inválidos encontrados');
+      return false;
+    }
+
+    for (let i = 0; i < rec.fractionedPeriods.length; i++) {
+      for (let j = i + 1; j < rec.fractionedPeriods.length; j++) {
+        if (dateRangesOverlap(
+          rec.fractionedPeriods[i].startDate,
+          rec.fractionedPeriods[i].endDate,
+          rec.fractionedPeriods[j].startDate,
+          rec.fractionedPeriods[j].endDate
+        )) {
+          console.log('Sobreposição detectada entre períodos fracionados');
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
 };

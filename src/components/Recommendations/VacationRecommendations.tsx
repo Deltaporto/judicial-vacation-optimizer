@@ -31,7 +31,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 interface VacationRecommendationsProps {
   vacationPeriod: VacationPeriod | null;
-  onRecommendationSelect: (dateRange: DateRange, recommendationType?: string) => void;
+  onRecommendationSelect: (dateRange: DateRange, recommendationType?: string, recommendation?: Recommendation) => void;
 }
 
 // Modificar para usar forwardRef
@@ -466,7 +466,7 @@ const VacationRecommendations = forwardRef<
         <CardFooter>
           <Button 
             size="sm" 
-            onClick={() => onRecommendationSelect(recommendation.suggestedDateRange, recommendation.type)}
+            onClick={() => onRecommendationSelect(recommendation.suggestedDateRange, recommendation.type, recommendation)}
             className="w-full"
           >
             Aplicar
