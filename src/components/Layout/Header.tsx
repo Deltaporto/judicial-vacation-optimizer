@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarDays, ArrowRight, HelpCircle, Calendar, FileText } from 'lucide-react';
+import { CalendarDays, ArrowRight, HelpCircle, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { 
   Tooltip,
@@ -28,7 +28,7 @@ const Header: React.FC<HeaderProps> = ({ onHolidaysUpdated }) => {
   
   return (
     <>
-      <header className="w-full bg-gradient-to-r from-blue-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm py-3 px-4 md:px-6 z-40 transition-all duration-300">
+      <header className="w-full bg-gradient-to-r from-blue-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 py-3 px-4 md:px-6 z-40 transition-all duration-300">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-200 dark:shadow-blue-900/20">
@@ -43,23 +43,9 @@ const Header: React.FC<HeaderProps> = ({ onHolidaysUpdated }) => {
           </div>
           
           <div className="flex items-center space-x-5">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost" 
-                    size="sm"
-                    className="flex items-center space-x-1.5 text-xs font-medium text-blue-600/80 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20 transition-colors"
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    <span>Resoluções CJF 764/2022 e 940/2025</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Resoluções do CJF</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Badge variant="outline" className="bg-blue-50/80 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800 px-3 py-1.5 text-xs font-medium rounded-full">
+              CJF Resoluções nº 764/2022 e nº 940/2025
+            </Badge>
             
             <TooltipProvider>
               <Tooltip>
