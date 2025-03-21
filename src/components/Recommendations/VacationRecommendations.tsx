@@ -99,14 +99,14 @@ const VacationRecommendations = forwardRef<
   const handleShowSuperOptimizations = () => {
     try {
       const currentYear = new Date().getFullYear();
-      console.log("Gerando super otimizações para o ano:", currentYear);
+      console.log("[DEBUG] Iniciando geração de super otimizações para o ano:", currentYear);
       
       // Tentar gerar as super otimizações
       const optimizations = generateSuperOptimizations(currentYear);
-      console.log("Super otimizações geradas:", optimizations.length);
+      console.log(`[DEBUG] Super otimizações geradas: ${optimizations.length}`);
       
       if (optimizations.length === 0) {
-        console.error("ERRO: A função gerou uma lista vazia de super otimizações!");
+        console.error("[ERRO] A função gerou uma lista vazia de super otimizações!");
         
         // Criar pelo menos uma recomendação forçada para exibir
         const fallbackRecommendation: Recommendation = {
@@ -124,16 +124,18 @@ const VacationRecommendations = forwardRef<
         };
         
         setSuperOptimizations([fallbackRecommendation]);
+        console.log("[DEBUG] Usando recomendação de fallback devido à lista vazia");
       } else {
         setSuperOptimizations(optimizations);
-        console.log("Primeiras recomendações:", optimizations.slice(0, 3).map(r => r.title));
+        console.log("[DEBUG] Primeiras recomendações:", 
+          optimizations.slice(0, 3).map(r => `${r.title} (${format(r.suggestedDateRange.startDate, 'dd/MM')} a ${format(r.suggestedDateRange.endDate, 'dd/MM')})`));
       }
       
       setShowSuperOptimizations(true);
       // Garantir que a tab "todas" esteja selecionada para mostrar todas as recomendações
       setActiveTab("all");
     } catch (error) {
-      console.error("Erro ao gerar super otimizações:", error);
+      console.error("[ERRO] Falha ao gerar super otimizações:", error);
       
       // Em caso de erro, criar recomendações de fallback
       const fallbackRecommendations: Recommendation[] = [
@@ -166,6 +168,7 @@ const VacationRecommendations = forwardRef<
       ];
       
       setSuperOptimizations(fallbackRecommendations);
+      console.log("[DEBUG] Usando recomendações de fallback devido a erro");
       setShowSuperOptimizations(true);
       setActiveTab("all");
     }
@@ -437,7 +440,7 @@ const VacationRecommendations = forwardRef<
               <>
                 {formatDate(recommendation.suggestedDateRange.startDate)} - {formatDate(recommendation.suggestedDateRange.endDate)}
                 
-                <div className="flex flex-col mt-1 gap-0.5">
+                <span className="flex flex-col mt-1 gap-0.5">
                   <span className="flex items-center text-purple-600 text-xs">
                     <CalendarCheck className="h-3 w-3 mr-1" />
                     {metrics.workDays} dias úteis = {metrics.totalRestDays} dias consecutivos de descanso
@@ -448,7 +451,7 @@ const VacationRecommendations = forwardRef<
                       Economize {metrics.savedVacationDays} {metrics.savedVacationDays === 1 ? 'dia' : 'dias'} de férias!
                     </span>
                   )}
-                </div>
+                </span>
               </>
             )}
           </CardDescription>

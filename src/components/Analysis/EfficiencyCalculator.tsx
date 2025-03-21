@@ -574,8 +574,11 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
   }
   
   if (isFractionated && fractionedPeriods.length > 0) {
+    console.log('[DEBUG EfficiencyCalculator] Renderizando análise de períodos fracionados:', fractionedPeriods);
+    
     // Filter out any null or undefined periods
     const validPeriods = fractionedPeriods.filter(Boolean);
+    console.log('[DEBUG EfficiencyCalculator] Períodos válidos após filtragem:', validPeriods);
     
     // Remover sobreposições entre períodos
     const cleanedPeriods = removePeriodOverlaps(validPeriods);

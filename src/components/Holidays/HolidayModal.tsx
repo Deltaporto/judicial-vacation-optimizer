@@ -140,7 +140,7 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
     
     toast({
       title: "Feriado removido",
-      description: `${holiday.name} (${formatDate(holiday.date)}) foi removido.`,
+      description: `${holiday.name} (${formatDate(holiday.date)}) foi removido com sucesso.`,
       variant: "default"
     });
     

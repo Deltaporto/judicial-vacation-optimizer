@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarDays, ArrowRight, HelpCircle, Calendar } from 'lucide-react';
+import { CalendarDays, ArrowRight, HelpCircle, Calendar, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { 
   Tooltip,
@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 interface HeaderProps {
   onHolidaysUpdated?: () => void;
@@ -27,42 +28,78 @@ const Header: React.FC<HeaderProps> = ({ onHolidaysUpdated }) => {
   
   return (
     <>
-      <header className="w-full bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-4 px-6 z-40 transition-all duration-300">
+      <header className="w-full bg-gradient-to-r from-blue-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm py-3 px-4 md:px-6 z-40 transition-all duration-300">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center text-white">
-              <CalendarDays className="h-5 w-5" />
+          <div className="flex items-center space-x-3">
+            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-200 dark:shadow-blue-900/20">
+              <CalendarDays className="h-6 w-6" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-lg font-medium leading-tight tracking-tight text-gray-900">
+              <h1 className="text-xl font-semibold leading-tight tracking-tight text-gray-900 dark:text-white">
                 Otimizador de Férias
               </h1>
-              <p className="text-xs text-gray-500">Para Magistrados Federais</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Para Magistrados Federais</p>
             </div>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <span className="text-xs px-3 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-100">
-              CJF Resoluções nº 764/2022 e nº 940/2025
-            </span>
+          <div className="flex items-center space-x-5">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost" 
+                    size="sm"
+                    className="flex items-center space-x-1.5 text-xs font-medium text-blue-600/80 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20 transition-colors"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>Resoluções CJF 764/2022 e 940/2025</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Resoluções do CJF</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
-            <Button
-              variant="ghost" 
-              size="sm"
-              onClick={() => setShowHolidayModal(true)}
-              className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <Calendar className="h-4 w-4" />
-              <span>Feriados</span>
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setShowHolidayModal(true)}
+                    className="flex items-center space-x-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-blue-50 dark:text-gray-300 dark:hover:text-white dark:hover:bg-blue-900/20 transition-colors"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    <span>Feriados</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Gerenciar feriados e recessos</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
             <Dialog>
-              <DialogTrigger asChild>
-                <button className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                  <HelpCircle className="h-4 w-4" />
-                  <span>Ajuda</span>
-                </button>
-              </DialogTrigger>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="flex items-center space-x-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-blue-50 dark:text-gray-300 dark:hover:text-white dark:hover:bg-blue-900/20 transition-colors"
+                      >
+                        <HelpCircle className="h-4 w-4" />
+                        <span>Ajuda</span>
+                      </Button>
+                    </DialogTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Saiba como usar a ferramenta</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                   <DialogTitle>Sobre o Otimizador de Férias Judiciais</DialogTitle>

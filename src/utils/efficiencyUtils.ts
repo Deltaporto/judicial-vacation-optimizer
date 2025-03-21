@@ -23,6 +23,30 @@ const dateRangesOverlap = (
 };
 
 /**
+ * Calcula o número de dias de sobreposição entre dois intervalos de datas
+ * @param startA Data de início do primeiro intervalo
+ * @param endA Data de fim do primeiro intervalo
+ * @param startB Data de início do segundo intervalo
+ * @param endB Data de fim do segundo intervalo
+ * @returns Número de dias de sobreposição
+ */
+const getOverlapDays = (
+  startA: Date, 
+  endA: Date, 
+  startB: Date, 
+  endB: Date
+): number => {
+  if (!dateRangesOverlap(startA, endA, startB, endB)) {
+    return 0;
+  }
+  
+  const overlapStart = new Date(Math.max(startA.getTime(), startB.getTime()));
+  const overlapEnd = new Date(Math.min(endA.getTime(), endB.getTime()));
+  
+  return differenceInDays(overlapEnd, overlapStart) + 1;
+};
+
+/**
  * Encontra dias com potencial para extensão de férias, identificando
  * clusters de feriados e fins de semana adjacentes, mas ignorando
  * fins de semana isolados que não trariam benefício real
@@ -3054,6 +3078,9 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
       
       // 7.8 Adicionar recomendação para fracionamento ideal (se houver)
       if (fractionedOptions && fractionedOptions.periods.length > 0) {
+        console.log('[DEBUG efficiencyUtils] Gerando recomendação para fracionamento ideal');
+        console.log('[DEBUG efficiencyUtils] Períodos de fracionamento disponíveis:', fractionedOptions.periods);
+        
         // Verificar se as frações não têm sobreposição significativa com períodos já selecionados
         const hasSignificantOverlap = fractionedOptions.periods.some(fraction => {
           return selectedPeriods.some(selectedPeriod => {
@@ -3078,7 +3105,7 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
           const avgWorkdayROI = totalWorkDays > 0 ? totalNonWorkDays / totalWorkDays : 0;
           
           // Criar recomendação
-          recommendations.push({
+          const fractionedRecommendation = {
             id: uuidv4(),
             type: 'optimal_fraction',
             title: `Fracionamento Ideal ${year}`,
@@ -3091,8 +3118,15 @@ export const generateSuperOptimizations = (currentYear: number = new Date().getF
             daysChanged: fractionedOptions.periods.reduce((sum, p) => sum + p.totalDays, 0),
             fractionedPeriods: fractionedOptions.periods,
             strategicScore: 9 // Alta pontuação para fracionamento ideal
-          });
+          };
+          
+          console.log('[DEBUG efficiencyUtils] Recomendação de fracionamento gerada:', fractionedRecommendation);
+          recommendations.push(fractionedRecommendation);
+        } else {
+          console.log('[DEBUG efficiencyUtils] Sobreposição significativa detectada, recomendação de fracionamento não será adicionada');
         }
+      } else {
+        console.log('[DEBUG efficiencyUtils] Nenhum período fracionado disponível para gerar recomendação');
       }
     });
     
