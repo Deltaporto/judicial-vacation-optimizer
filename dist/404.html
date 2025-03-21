@@ -1,24 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Planejador de Férias Judiciais</title>
-        <meta name="description" content="Otimize suas férias judiciais com esta ferramenta" />
-        <meta name="author" content="DeltaPorto" />
-        <script>
-            const pathSegmentsToKeep = 1;
-            const l = window.location;
-            l.replace(
-                l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-                l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
-                l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
-                (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-                l.hash
-            );
-        </script>
-    </head>
-    <body>
-        <p>Redirecionando...</p>
-    </body>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Redirecionando...</title>
+  <script type="text/javascript">
+    // Redireciona para o index.html que contém nossa aplicação SPA
+    var segmentCount = 1;
+    var l = window.location;
+    l.replace(
+      l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+      l.pathname.split('/').slice(0, 1 + segmentCount).join('/') + '/?p=/' +
+      l.pathname.slice(1).split('/').slice(segmentCount).join('/').replace(/&/g, '~and~') +
+      (l.search ? '&q=' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+      l.hash
+    );
+  </script>
+</head>
+<body>
+  <p>Redirecionando para a página principal...</p>
+</body>
 </html> 
