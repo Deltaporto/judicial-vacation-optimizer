@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Otimizador de férias para magistrados federais - Deploy forçado em 2024-03-19",
   "main": "test-super.js",
+  "type": "module",
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -130,7 +131,6 @@
     "fs-extra": "^11.3.0",
     "function-bind": "^1.1.2",
     "get-nonce": "^1.0.1",
-    "gh-pages": "^6.3.0",
     "glob": "^10.4.5",
     "glob-parent": "^6.0.2",
     "globals": "^15.11.0",
@@ -295,7 +295,9 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@vitejs/plugin-react-swc": "^3.8.1"
+    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react-swc": "^3.8.1",
+    "gh-pages": "^6.3.0"
   },
   "scripts": {
     "dev": "vite",
@@ -313,5 +315,5 @@
   "bugs": {
     "url": "https://github.com/Deltaporto/judicial-vacation-optimizer/issues"
   },
-  "homepage": "https://github.com/Deltaporto/judicial-vacation-optimizer#readme"
+  "homepage": "https://deltaporto.github.io/judicial-vacation-optimizer/"
 }
