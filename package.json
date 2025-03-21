@@ -295,6 +295,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
     "@vitejs/plugin-react-swc": "^3.8.1",
     "gh-pages": "^6.3.0"
   },
