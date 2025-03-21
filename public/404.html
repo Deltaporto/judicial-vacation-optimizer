@@ -5,15 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Página não encontrada - Planejador de Férias Judiciais</title>
     <script>
-        // Redireciona para a página inicial mantendo o caminho original
-        // Isso é necessário para o GitHub Pages funcionar com rotas do React Router
-        const segment = 'judicial-vacation-optimizer';
+        // Obter o caminho atual
         const path = window.location.pathname;
-        const redirectPath = path.includes(segment) 
-            ? path 
-            : `/${segment}${path}`;
-        
-        window.location.replace(`/#${redirectPath}`);
+        // Se a URL já contém judicial-vacation-optimizer, não redirecionar
+        if (!path.includes('judicial-vacation-optimizer/assets/') && 
+            !path.endsWith('judicial-vacation-optimizer/') && 
+            !path.endsWith('judicial-vacation-optimizer')) {
+            window.location.replace('/judicial-vacation-optimizer/');
+        }
     </script>
     <style>
         body {
@@ -45,6 +44,7 @@
     <div class="container">
         <h1>Página não encontrada</h1>
         <p>Redirecionando para a página inicial...</p>
+        <p>Se não for redirecionado, <a href="/judicial-vacation-optimizer/">clique aqui</a></p>
     </div>
 </body>
 </html> 
