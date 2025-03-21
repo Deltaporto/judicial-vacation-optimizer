@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  base: '/judicial-vacation-optimizer/',
+  base: mode === 'production' ? '/judicial-vacation-optimizer/' : '/',
   plugins: [
     react(),
   ].filter(Boolean),
