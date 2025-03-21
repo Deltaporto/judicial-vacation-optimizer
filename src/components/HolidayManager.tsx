@@ -149,6 +149,44 @@ const HolidayManager: React.FC<HolidayManagerProps> = ({ onHolidaysUpdated }) =>
     }
   };
   
+  const handleAddHoliday = (holiday: Holiday) => {
+    // Adiciona o feriado personalizado
+    addCustomHoliday(holiday);
+    
+    // Recarrega a lista de feriados
+    loadHolidays();
+    
+    // Notifica o componente pai sobre a atualização
+    if (onHolidaysUpdated) {
+      onHolidaysUpdated();
+    }
+    
+    toast({
+      title: "Feriado adicionado",
+      description: `${holiday.name} (${formatDate(holiday.date)}) foi adicionado com sucesso.`,
+      variant: "default"
+    });
+  };
+
+  const handleRemoveHoliday = (date: string) => {
+    // Remove o feriado
+    removeCustomHoliday(date);
+    
+    // Recarrega a lista de feriados
+    loadHolidays();
+    
+    // Notifica o componente pai sobre a atualização
+    if (onHolidaysUpdated) {
+      onHolidaysUpdated();
+    }
+    
+    toast({
+      title: "Feriado removido",
+      description: `O feriado de ${formatDate(date)} foi removido com sucesso.`,
+      variant: "default"
+    });
+  };
+  
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">Gerenciador de Feriados</h1>

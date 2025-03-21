@@ -56,13 +56,14 @@ export interface CalendarDay {
   isWeekend: boolean;
   isCurrentMonth: boolean;
   isToday: boolean;
-  isSelected: boolean;
+  isHoliday: boolean;
+  isInSelection: boolean;
   isSelectionStart: boolean;
   isSelectionEnd: boolean;
-  isInSelection: boolean;
   isInSecondarySelection?: boolean;
   isSecondarySelectionStart?: boolean;
   isSecondarySelectionEnd?: boolean;
+  secondarySelectionIndex?: number;
   holiday?: Holiday;
 }
 

@@ -12,8 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { generateRecommendations } from '@/utils/efficiencyUtils';
-import { Lightbulb } from 'lucide-react';
+import { Lightbulb, Info } from 'lucide-react';
 import HolidayModal from '@/components/Holidays/HolidayModal';
+import { testHybridRecommendations } from '@/utils/test-hybrid-recommendations';
 
 const Index = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -33,6 +34,9 @@ const Index = () => {
   const [calendarKey, setCalendarKey] = useState<number>(0);
   // Adicionar referência para o componente VacationRecommendations
   const vacationRecommendationsRef = useRef<any>(null);
+  
+  // Adicionar estado para controlar se estamos em uma estratégia híbrida
+  const [isHybridStrategy, setIsHybridStrategy] = useState(false);
   
   // Update vacation period when date range changes
   useEffect(() => {
@@ -70,7 +74,7 @@ const Index = () => {
   
   // Handle single date selection
   const handleDateSelect = (date: Date) => {
-    console.log("Index: Date selected:", date);
+    // console.log("Index: Date selected:", date);
     setSelectedDate(date);
     
     // Always create a new date object to avoid reference issues
@@ -92,7 +96,7 @@ const Index = () => {
   
   // Handle date range selection
   const handleDateRangeSelect = (range: DateRange) => {
-    console.log("Index: Range selected:", range.startDate, "to", range.endDate);
+    // console.log("Index: Range selected:", range.startDate, "to", range.endDate);
     
     // Always create a new range object with proper dates to avoid circular references
     const newRange = {
@@ -104,7 +108,7 @@ const Index = () => {
     if (!selectedRange || 
         selectedRange.startDate.getTime() !== newRange.startDate.getTime() || 
         selectedRange.endDate.getTime() !== newRange.endDate.getTime()) {
-      console.log("Index: Updating range state");
+      // console.log("Index: Updating range state");
       setSelectedRange(newRange);
       
       // Only consider it a complete range if start and end are different
@@ -115,13 +119,40 @@ const Index = () => {
       setSplitVacations(null);
       setActiveVacationTab("single");
     } else {
-      console.log("Index: Range not changed, skipping update");
+      // console.log("Index: Range not changed, skipping update");
     }
   };
   
   // Handle recommendation selection
-  const handleRecommendationSelect = (dateRange: DateRange, recommendationType?: string) => {
-    // Special handling for hybrid recommendation
+  const handleRecommendationSelect = (dateRange: DateRange, recommendationType?: string, fullRecommendation?: Recommendation) => {
+    // Para estratégias híbridas com fracionamento
+    if ((recommendationType === 'hybrid' || recommendationType === 'hybrid_bridge_split') && 
+        fullRecommendation && fullRecommendation.fractionedPeriods && 
+        fullRecommendation.fractionedPeriods.length > 0) {
+        
+        // Aplicar o primeiro período como principal
+        setDateRange({
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate
+        });
+        
+        // Aplicar os períodos fracionados
+        setSplitPeriods(fullRecommendation.fractionedPeriods.map(period => ({
+          startDate: period.startDate,
+          endDate: period.endDate
+        })));
+        
+        // Marcar como estratégia híbrida
+        setIsHybridStrategy(true);
+        
+        // Atualizar o mês do calendário para o mês do período recomendado
+        setCalendarKey(prev => prev + 1);
+        
+        showSuccess('Estratégia híbrida aplicada com sucesso!');
+        return;
+    }
+    
+    // Special handling for hybrid recommendation (fallback para método anterior)
     if (recommendationType === 'hybrid' && dateRange.description) {
       // Verificar se a descrição contém padrões que indicam um fracionamento
       const hasSplitPattern = /Divida suas férias em dois períodos/.test(dateRange.description);
@@ -160,7 +191,13 @@ const Index = () => {
             }]);
             
             // Atualizar o mês do calendário para o mês do período recomendado
-            setCalendarKey(prev => prev + 1);
+            // Apenas atualiza se o month atual for diferente do mês do início do período
+            const recommendedMonth = secondStart.getMonth();
+            const currentMonth = currentCalendarMonth.getMonth();
+            if (recommendedMonth !== currentMonth) {
+              setCalendarKey(prev => prev + 1);
+              setCurrentCalendarMonth(startOfMonth(secondStart));
+            }
             
             return;
           }
@@ -175,7 +212,13 @@ const Index = () => {
       });
       
       // Atualizar o mês do calendário para o mês do período recomendado
-      setCalendarKey(prev => prev + 1);
+      // Apenas atualiza se o month atual for diferente do mês do início do período
+      const recommendedMonth = dateRange.startDate.getMonth();
+      const currentMonth = currentCalendarMonth.getMonth();
+      if (recommendedMonth !== currentMonth) {
+        setCalendarKey(prev => prev + 1);
+        setCurrentCalendarMonth(startOfMonth(dateRange.startDate));
+      }
       
       showSuccess('Recomendação híbrida aplicada com sucesso!');
       return;
@@ -213,7 +256,13 @@ const Index = () => {
           });
           
           // Atualizar o mês do calendário para o mês do período recomendado
-          setCalendarKey(prev => prev + 1);
+          // Apenas atualiza se o month atual for diferente do mês do início do período
+          const recommendedMonth = firstStart.getMonth();
+          const currentMonth = currentCalendarMonth.getMonth();
+          if (recommendedMonth !== currentMonth) {
+            setCalendarKey(prev => prev + 1);
+            setCurrentCalendarMonth(startOfMonth(firstStart));
+          }
           
           return;
         }
@@ -222,33 +271,40 @@ const Index = () => {
     
     // Special handling for optimal fraction recommendation
     if (recommendationType === 'optimal_fraction' && dateRange.description) {
+      console.log('[DEBUG] Aplicando recomendação de fracionamento ótimo');
       // Find recommendation to get all period data
       const recommendation = vacationRecommendations.find(r => r.type === 'optimal_fraction');
       
+      console.log('[DEBUG] Recomendação encontrada:', recommendation);
+      
       if (recommendation && recommendation.fractionedPeriods && recommendation.fractionedPeriods.length > 0) {
-        showSuccess('Períodos fracionados aplicados com sucesso!');
+        console.log('[DEBUG] Períodos fracionados encontrados:', recommendation.fractionedPeriods);
         
-        // Show the first period and store the rest as split periods
-        const [firstPeriod, ...otherPeriods] = recommendation.fractionedPeriods;
-        
-        // Set the first period as the main date range
+        // Aplicar o primeiro período como principal (semelhante à estratégia híbrida)
         setDateRange({
-          startDate: firstPeriod.startDate,
-          endDate: firstPeriod.endDate
+          startDate: recommendation.fractionedPeriods[0].startDate,
+          endDate: recommendation.fractionedPeriods[0].endDate
         });
         
-        // Save the remaining periods for display in the split section
-        if (otherPeriods.length > 0) {
-          setSplitPeriods(otherPeriods.map(period => ({
-            startDate: period.startDate,
-            endDate: period.endDate
-          })));
-        }
+        // Aplicar todos os períodos fracionados (excluindo o primeiro que já está no dateRange)
+        setSplitPeriods(recommendation.fractionedPeriods.slice(1).map(period => ({
+          startDate: period.startDate,
+          endDate: period.endDate
+        })));
         
         // Atualizar o mês do calendário para o mês do período recomendado
-        setCalendarKey(prev => prev + 1);
+        // Apenas atualiza se o month atual for diferente do mês do início do período
+        const recommendedMonth = recommendation.fractionedPeriods[0].startDate.getMonth();
+        const currentMonth = currentCalendarMonth.getMonth();
+        if (recommendedMonth !== currentMonth) {
+          setCalendarKey(prev => prev + 1);
+          setCurrentCalendarMonth(startOfMonth(recommendation.fractionedPeriods[0].startDate));
+        }
         
+        showSuccess('Períodos fracionados aplicados com sucesso!');
         return;
+      } else {
+        console.log('[DEBUG] Nenhum período fracionado encontrado na recomendação');
       }
     }
     
@@ -259,7 +315,13 @@ const Index = () => {
     });
     
     // Atualizar o mês do calendário para o mês do período recomendado
-    setCalendarKey(prev => prev + 1);
+    // Apenas atualiza se o month atual for diferente do mês do início do período
+    const recommendedMonth = dateRange.startDate.getMonth();
+    const currentMonth = currentCalendarMonth.getMonth();
+    if (recommendedMonth !== currentMonth) {
+      setCalendarKey(prev => prev + 1);
+      setCurrentCalendarMonth(startOfMonth(dateRange.startDate));
+    }
     
     if (recommendationType) {
       showSuccess('Recomendação aplicada com sucesso!');
@@ -316,6 +378,8 @@ const Index = () => {
   // Atualizar a aba ativa quando houver mudanças nos períodos
   useEffect(() => {
     if (splitPeriods.length > 0) {
+      console.log('[DEBUG] Períodos fracionados detectados:', splitPeriods);
+      console.log('[DEBUG] Alterando para a aba de fracionamento ótimo');
       setActiveVacationTab("optimal");
     } else if (splitVacations || splitPeriod) {
       setActiveVacationTab("split");
@@ -323,6 +387,16 @@ const Index = () => {
       setActiveVacationTab("single");
     }
   }, [vacationPeriod, splitVacations, splitPeriod, splitPeriods]);
+  
+  // Monitorar mudanças nas abas e nos períodos fracionados
+  useEffect(() => {
+    console.log('[DEBUG] Tab ativa alterada para:', activeVacationTab);
+    console.log('[DEBUG] Estado atual dos períodos fracionados:', {
+      splitPeriods,
+      isHybridStrategy,
+      activeVacationTab
+    });
+  }, [activeVacationTab, splitPeriods, isHybridStrategy]);
   
   const handleHolidaysUpdated = () => {
     // Se houver um período de férias selecionado, recalcular após atualização dos feriados
@@ -345,6 +419,17 @@ const Index = () => {
         title: "Feriados atualizados",
         description: "O período de férias foi recalculado com os novos feriados.",
       });
+    } else {
+      // Se não houver período selecionado, atualizar as super otimizações
+      if (vacationRecommendationsRef.current) {
+        vacationRecommendationsRef.current.showSuperOptimizations();
+      }
+      
+      // Notificar o usuário
+      toast({
+        title: "Feriados atualizados",
+        description: "As super otimizações foram recalculadas com os novos feriados.",
+      });
     }
     
     // Forçar a renderização do calendário atualizando o key
@@ -360,6 +445,7 @@ const Index = () => {
     setIsRangeComplete(false);
     setSplitVacations(null);
     setSplitPeriods([]);
+    setIsHybridStrategy(false); // Resetar também o estado da estratégia híbrida
     
     // Mostrar toast informando que a seleção foi limpa
     toast({
@@ -381,7 +467,7 @@ const Index = () => {
   };
   
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="flex flex-col min-h-screen bg-gradient-to-b from-white to-blue-50 dark:from-slate-900 dark:to-slate-800">
       <Header onHolidaysUpdated={handleHolidaysUpdated} />
       
       {/* Modal de feriados */}
@@ -391,24 +477,15 @@ const Index = () => {
         onHolidaysUpdated={handleHolidaysUpdated}
       />
       
-      <main className="flex-grow container mx-auto py-8 px-4 sm:px-6">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">
+      <main className="flex-1 container py-6 px-4 md:py-8 md:px-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent mb-2">
             Planejador de Férias Judiciais
           </h1>
-          
-          <Button 
-            variant="outline" 
-            onClick={handleRunTests} 
-            className="text-sm"
-          >
-            Testar Novas Estratégias de Otimização
-          </Button>
+          <p className="text-slate-600 dark:text-slate-300 max-w-3xl">
+            Selecione um período no calendário para visualizar a eficiência de suas férias e receber recomendações de otimização.
+          </p>
         </div>
-        
-        <p className="text-lg text-gray-600 mb-4">
-          Selecione um período no calendário para visualizar a eficiência de suas férias e receber recomendações de otimização.
-        </p>
         
         <div className="flex items-center p-5 bg-blue-50 rounded-lg mb-8 text-blue-700 text-sm">
           <Lightbulb className="h-5 w-5 mr-3 flex-shrink-0" />
@@ -419,16 +496,16 @@ const Index = () => {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
           {/* Left column - Calendar */}
-          <div className="lg:col-span-2">
-            {/* Usar key para forçar a renderização do CalendarView */}
+          <div className="md:col-span-2">
             <CalendarView
-              key={calendarKey}
-              selectedRange={selectedRange}
-              secondaryRange={splitPeriods.length > 0 ? splitPeriods[0] : null}
               onDateSelect={handleDateSelect}
               onDateRangeSelect={handleDateRangeSelect}
-              onOpenHolidayModal={handleOpenHolidayModal}
+              selectedRange={selectedRange}
               onClearSelection={handleClearSelection}
+              key={calendarKey}
+              splitPeriods={splitPeriods.length > 0 ? splitPeriods : undefined}
+              showFractionedPeriods={splitPeriods.length > 0 || isHybridStrategy}
+              onOpenHolidayModal={handleOpenHolidayModal}
             />
             
             {/* Análise de Eficiência agora abaixo do calendário */}
@@ -440,27 +517,26 @@ const Index = () => {
                   className="w-full bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
                 >
                   <div className="p-4 border-b border-gray-100">
-                    <TabsList className={`grid ${splitPeriods.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                      <TabsTrigger value="single" disabled={!vacationPeriod}>
-                        Período Único
-                      </TabsTrigger>
-                      <TabsTrigger value="split" disabled={!splitVacations && splitPeriod === null && splitPeriods.length === 0}>
-                        Período Fracionado
-                      </TabsTrigger>
+                    <TabsList className={`grid ${splitPeriods.length > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
+                      <TabsTrigger value="single">Período Único</TabsTrigger>
+                      <TabsTrigger value="split">Período Fracionado</TabsTrigger>
+                      {console.log('[DEBUG] Renderizando abas, splitPeriods.length:', splitPeriods.length)}
                       {splitPeriods.length > 0 && (
-                        <TabsTrigger value="optimal">
-                          Fracionamento Ótimo
-                        </TabsTrigger>
+                        <TabsTrigger value="optimal">Fracionamento Ótimo</TabsTrigger>
                       )}
                     </TabsList>
                   </div>
                   
                   <TabsContent value="single" className="p-0">
-                    <EfficiencyCalculator vacationPeriod={vacationPeriod} />
+                    <EfficiencyCalculator 
+                      vacationPeriod={vacationPeriod} 
+                      isHybrid={isHybridStrategy && splitPeriods.length > 0}
+                      fractionedPeriods={isHybridStrategy ? splitPeriods.map(period => getVacationPeriodDetails(period.startDate, period.endDate)) : []}
+                    />
                   </TabsContent>
                   
                   <TabsContent value="split" className="p-0">
-                    {splitVacations && (
+                    {!isHybridStrategy && splitVacations && (
                       <EfficiencyCalculator 
                         vacationPeriod={null}
                         fractionedPeriods={[
@@ -472,7 +548,7 @@ const Index = () => {
                     )}
                     
                     {/* Display single split period */}
-                    {!splitVacations && splitPeriod && (
+                    {!isHybridStrategy && !splitVacations && splitPeriod && (
                       <>
                         {/* Get vacation period details for the split period */}
                         {vacationPeriod && (
@@ -487,19 +563,23 @@ const Index = () => {
                         )}
                       </>
                     )}
+                    
+                    {/* Display hybrid strategy analysis in split tab */}
+                    {isHybridStrategy && (
+                      <div className="p-6 text-center text-gray-500">
+                        <Info className="h-8 w-8 mx-auto mb-2 text-blue-400" />
+                        <p>A análise da estratégia híbrida está disponível na aba "Período Único".</p>
+                      </div>
+                    )}
                   </TabsContent>
                   
                   <TabsContent value="optimal" className="p-0">
-                    {splitPeriods.length > 0 && (
-                      <EfficiencyCalculator 
-                        vacationPeriod={vacationPeriod}
-                        fractionedPeriods={[
-                          vacationPeriod, 
-                          ...splitPeriods.map(period => getVacationPeriodDetails(period.startDate, period.endDate))
-                        ].filter(period => period && period.isValid)}
-                        isFractionated={true}
-                      />
-                    )}
+                    {console.log('[DEBUG] Renderizando conteúdo da aba Fracionamento Ótimo com períodos:', splitPeriods)}
+                    <EfficiencyCalculator 
+                      vacationPeriod={null} 
+                      fractionedPeriods={splitPeriods.map(period => getVacationPeriodDetails(period.startDate, period.endDate))} 
+                      isFractionated={true}
+                    />
                   </TabsContent>
                 </Tabs>
               )}

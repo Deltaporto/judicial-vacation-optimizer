@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { format, getMonth, getYear, addMonths, subMonths, isSameMonth, isSameDay, differenceInDays } from 'date-fns';
+import { format, getMonth, getYear, addMonths, subMonths, isSameMonth, isSameDay, differenceInDays, isWithinInterval, isWeekend } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarDay, DateRange, Holiday, ViewMode } from '@/types';
 import { getCalendarDays } from '@/utils/dateUtils';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, X, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
   Tooltip,
@@ -14,23 +14,25 @@ import {
 import { isValidVacationPeriod } from '@/utils/dateUtils';
 
 interface CalendarViewProps {
-  selectedRange: DateRange | null;
-  secondaryRange?: DateRange | null; // Novo: para o segundo período fracionado
   onDateSelect: (date: Date) => void;
   onDateRangeSelect: (range: DateRange) => void;
-  onOpenHolidayModal?: () => void; // Nova prop para abrir o modal de feriados
-  onClearSelection?: () => void; // Nova prop para limpar a seleção
+  selectedRange: DateRange | null;
+  onClearSelection: () => void;
+  splitPeriods?: DateRange[];
+  showFractionedPeriods?: boolean;
+  onOpenHolidayModal?: () => void;
 }
 
 const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 const CalendarView: React.FC<CalendarViewProps> = ({ 
+  onDateSelect, 
+  onDateRangeSelect, 
   selectedRange, 
-  secondaryRange,
-  onDateSelect,
-  onDateRangeSelect,
-  onOpenHolidayModal,
-  onClearSelection
+  onClearSelection,
+  splitPeriods = [],
+  showFractionedPeriods = false,
+  onOpenHolidayModal
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('month');
@@ -41,17 +43,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   
   // Update calendar days when month changes or selection/preview changes
   useEffect(() => {
-    console.log("UseEffect triggered - Recalculating calendar days");
-    console.log("Current selected range:", selectedRange);
-    console.log("Current preview range:", previewRange);
-    console.log("Current secondary range:", secondaryRange);
-    
     // Calculate actual range to highlight (either confirmed selection or preview)
     const effectiveRange = previewRange || selectedRange;
-    console.log("Effective range for rendering:", effectiveRange);
     
-    setCalendarDays(getCalendarDays(currentMonth, effectiveRange, secondaryRange));
-  }, [currentMonth, selectedRange, previewRange, secondaryRange]);
+    setCalendarDays(getCalendarDays(currentMonth, effectiveRange, splitPeriods));
+  }, [currentMonth, selectedRange, previewRange, splitPeriods]);
   
   // Atualizar o mês para exibir o mês do período selecionado quando o selectedRange mudar
   useEffect(() => {
@@ -72,17 +68,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   
   // Handle click on a day - either start selection or complete it
   const handleDayClick = (day: CalendarDay) => {
-    console.log("Day clicked:", day.date, "isCurrentMonth:", day.isCurrentMonth, "isInSelection:", day.isInSelection);
-    console.log("Current selection start:", selectionStart);
-    
     // Se já temos um ponto de início selecionado e clicamos em outro dia,
     // devemos completar a seleção, independentemente do preview
     if (selectionStart) {
-      console.log("Completing selection");
       const start = selectionStart < day.date ? new Date(selectionStart) : new Date(day.date);
       const end = selectionStart < day.date ? new Date(day.date) : new Date(selectionStart);
-      
-      console.log("Final range:", start, "to", end);
       
       // Create a new DateRange object with proper dates
       const range: DateRange = {
@@ -99,7 +89,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     // Verificar se estamos clicando em um dia que já está em uma seleção existente
     // (mas não durante o processo de seleção) para limpar
     if (selectedRange && !selectionStart && day.isInSelection) {
-      console.log("Clearing existing selection");
       setSelectionStart(null);
       setPreviewRange(null);
       onDateRangeSelect({ startDate: new Date(day.date), endDate: new Date(day.date) });
@@ -107,7 +96,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({
     }
     
     // Se estamos iniciando uma nova seleção
-    console.log("Starting new selection");
     const newStartDate = new Date(day.date);
     setSelectionStart(newStartDate);
     onDateSelect(newStartDate);
@@ -173,6 +161,47 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   const isRangeValid = (range: DateRange | null): boolean => {
     if (!range) return true;
     return isValidVacationPeriod(range.startDate, range.endDate).isValid;
+  };
+  
+  // Handle export calendar event
+  const handleExportCalendarEvent = () => {
+    if (!selectedRange || !selectedRange.startDate || !selectedRange.endDate) return;
+    
+    // Formato da data para ICS: YYYYMMDD
+    const formatDateForICS = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}${month}${day}`;
+    };
+    
+    // Criar conteúdo do arquivo ICS
+    const startDate = formatDateForICS(selectedRange.startDate);
+    const endDate = formatDateForICS(new Date(selectedRange.endDate.getTime() + 24 * 60 * 60 * 1000)); // Adiciona 1 dia para inclusão da data final
+    
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Planejador de Férias Judiciais//BR
+BEGIN:VEVENT
+SUMMARY:Férias
+DTSTART;VALUE=DATE:${startDate}
+DTEND;VALUE=DATE:${endDate}
+DESCRIPTION:Período de férias judiciais
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+END:VCALENDAR`;
+    
+    // Criar um blob e fazer download
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ferias_${startDate}_${endDate}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
   
   // Render month view
@@ -242,14 +271,40 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           
           // Secondary range styling (período fracionado)
           if (day.isInSecondarySelection) {
-            className += " bg-emerald-100";
+            // Cores diferentes para cada período fracionado
+            const colorClasses = [
+              "bg-emerald-100", // Primeiro período
+              "bg-purple-100",  // Segundo período
+              "bg-amber-100",   // Terceiro período
+              "bg-pink-100",    // Quarto período
+              "bg-indigo-100",  // Quinto período
+              "bg-cyan-100"     // Sexto período
+            ];
+            
+            // Texto (branco) para as datas de início e fim
+            const textClasses = [
+              "text-emerald-800",
+              "text-purple-800",
+              "text-amber-800",
+              "text-pink-800",
+              "text-indigo-800",
+              "text-cyan-800"
+            ];
+            
+            // Selecionar a cor baseado no índice do período (ou usar a primeira cor como fallback)
+            const colorIndex = typeof day.secondarySelectionIndex === 'number' ? 
+              Math.min(day.secondarySelectionIndex, colorClasses.length - 1) : 0;
+            
+            className += ` ${colorClasses[colorIndex]}`;
+            
             if (day.isSecondarySelectionStart) {
-              className += " bg-emerald-500 rounded-l-md";
-              dayNumberClass = "text-sm font-medium text-white mt-1";
+              className += ` ${colorClasses[colorIndex].replace('100', '500')} rounded-l-md`;
+              dayNumberClass = `text-sm font-medium text-white mt-1`;
             }
+            
             if (day.isSecondarySelectionEnd) {
-              className += " bg-emerald-500 rounded-r-md";
-              dayNumberClass = "text-sm font-medium text-white mt-1";
+              className += ` ${colorClasses[colorIndex].replace('100', '500')} rounded-r-md`;
+              dayNumberClass = `text-sm font-medium text-white mt-1`;
             }
           }
           
@@ -367,6 +422,27 @@ const CalendarView: React.FC<CalendarViewProps> = ({
                 </Tooltip>
               </TooltipProvider>
             )}
+            
+            {/* Botão para exportar para calendário */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportCalendarEvent}
+                    disabled={!hasCompletePeriod}
+                    className={`${hasCompletePeriod ? 'text-indigo-600 border-indigo-200 hover:bg-indigo-50' : 'text-gray-400 border-gray-200'}`}
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    <span>Exportar</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Exportar período para calendário iOS/Android
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
             {/* Botão para limpar seleção - sempre mostra, mas desabilitado quando não há seleção */}
             <TooltipProvider>

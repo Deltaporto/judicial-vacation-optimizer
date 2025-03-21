@@ -168,75 +168,158 @@ export const getVacationPeriodDetails = (startDate: Date, endDate: Date): Vacati
 export const getCalendarDays = (
   month: Date,
   selectedRange: DateRange | null,
-  secondaryRange: DateRange | null = null
+  splitPeriods: DateRange[] = []
 ): CalendarDay[] => {
+  const days: CalendarDay[] = [];
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
-  const today = new Date();
+  const firstDayOfMonth = monthStart.getDay(); // 0 = Sunday, 1 = Monday, etc.
   
-  // Get start of first week (might be in previous month)
-  const calendarStart = new Date(monthStart);
-  const dayOfWeek = monthStart.getDay();
-  calendarStart.setDate(monthStart.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+  // Ajuste para começar a semana na segunda-feira (0 = segunda, 6 = domingo)
+  const adjustedFirstDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
   
-  // Get end of last week (might be in next month)
-  const calendarEnd = new Date(monthEnd);
-  const lastDayOfWeek = monthEnd.getDay();
-  calendarEnd.setDate(monthEnd.getDate() + (lastDayOfWeek === 0 ? 0 : 7 - lastDayOfWeek));
+  // Get holidays for the current month
+  const holidays = getHolidaysInRange(monthStart, monthEnd);
   
-  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  // Fill in days from previous month to start grid on Monday
+  for (let i = adjustedFirstDay - 1; i >= 0; i--) {
+    const prevMonthDay = addDays(monthStart, -i - 1);
+    days.push({
+      date: prevMonthDay,
+      isCurrentMonth: false,
+      isWeekend: isWeekend(prevMonthDay),
+      isToday: isSameDay(prevMonthDay, new Date()),
+      isHoliday: !!isHoliday(prevMonthDay),
+      holiday: isHoliday(prevMonthDay),
+      isInSelection: false,
+      isSelectionStart: false,
+      isSelectionEnd: false,
+      isInSecondarySelection: false,
+      isSecondarySelectionStart: false,
+      isSecondarySelectionEnd: false
+    });
+  }
   
-  return days.map(date => {
+  // Preparar os períodos fracionados para processamento mais eficiente
+  const validSplitPeriods = splitPeriods.filter(period => 
+    period && period.startDate && period.endDate
+  ).map(period => ({
+    startDate: new Date(period.startDate),
+    endDate: new Date(period.endDate),
+    start: new Date(period.startDate).setHours(0, 0, 0, 0),
+    end: new Date(period.endDate).setHours(23, 59, 59, 999)
+  }));
+  
+  // Fill in days for current month
+  const daysInMonth = differenceInDays(monthEnd, monthStart) + 1;
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(month.getFullYear(), month.getMonth(), day);
+    const isToday = isSameDay(date, new Date());
+    const isWeekendDay = isWeekend(date);
     const holiday = isHoliday(date);
     
-    let isSelected = false;
+    // Check if day is in selected range
+    let isInSelection = false;
     let isSelectionStart = false;
     let isSelectionEnd = false;
-    let isInSelection = false;
+    
+    if (
+      selectedRange && 
+      selectedRange.startDate && 
+      selectedRange.endDate
+    ) {
+      // Create proper Date objects to avoid issues with time
+      const rangeStart = new Date(selectedRange.startDate);
+      const rangeEnd = new Date(selectedRange.endDate);
+      rangeStart.setHours(0, 0, 0, 0);
+      rangeEnd.setHours(23, 59, 59, 999);
+      
+      const currentDate = new Date(date);
+      currentDate.setHours(12, 0, 0, 0); // Midi para evitar problemas com horário de verão
+      
+      // Verificar se está dentro do intervalo
+      isInSelection = currentDate >= rangeStart && currentDate <= rangeEnd;
+      
+      // Verificar se é início ou fim do intervalo
+      isSelectionStart = isSameDay(currentDate, rangeStart);
+      isSelectionEnd = isSameDay(currentDate, rangeEnd);
+    }
+    
+    // Check if day is in any of the secondary ranges (períodos fracionados)
     let isInSecondarySelection = false;
     let isSecondarySelectionStart = false;
     let isSecondarySelectionEnd = false;
+    let secondarySelectionIndex = -1;
     
-    if (selectedRange) {
-      const start = new Date(selectedRange.startDate);
-      start.setHours(0, 0, 0, 0);
+    if (validSplitPeriods.length > 0) {
+      // Verificar cada período fracionado
+      const currentDate = new Date(date);
+      currentDate.setHours(12, 0, 0, 0);
+      const currentTime = currentDate.getTime();
       
-      const end = new Date(selectedRange.endDate);
-      end.setHours(23, 59, 59, 999);
-      
-      isSelectionStart = isSameDay(date, start);
-      isSelectionEnd = isSameDay(date, end);
-      isInSelection = date >= start && date <= end;
-      isSelected = isSelectionStart || isSelectionEnd;
+      for (let i = 0; i < validSplitPeriods.length; i++) {
+        const period = validSplitPeriods[i];
+
+        // Se a data está neste período e não é o período principal
+        if (currentTime >= period.start && currentTime <= period.end && !isInSelection) {
+          isInSecondarySelection = true;
+          
+          // Marcar início e fim do período secundário
+          if (isSameDay(currentDate, period.startDate)) {
+            isSecondarySelectionStart = true;
+          }
+          
+          if (isSameDay(currentDate, period.endDate)) {
+            isSecondarySelectionEnd = true;
+          }
+          
+          // Guardar o índice do período para coloração diferenciada
+          secondarySelectionIndex = i;
+          
+          // Uma vez que encontramos um período que contém esta data, podemos parar de procurar
+          break;
+        }
+      }
     }
     
-    if (secondaryRange) {
-      const start = new Date(secondaryRange.startDate);
-      start.setHours(0, 0, 0, 0);
-      
-      const end = new Date(secondaryRange.endDate);
-      end.setHours(23, 59, 59, 999);
-      
-      isSecondarySelectionStart = isSameDay(date, start);
-      isSecondarySelectionEnd = isSameDay(date, end);
-      isInSecondarySelection = date >= start && date <= end;
-    }
-    
-    return {
+    days.push({
       date,
-      isWeekend: isWeekend(date),
-      isCurrentMonth: isSameMonth(date, month),
-      isToday: isSameDay(date, today),
-      isSelected,
+      isCurrentMonth: true,
+      isWeekend: isWeekendDay,
+      isToday,
+      isHoliday: !!holiday,
+      holiday,
+      isInSelection,
       isSelectionStart,
       isSelectionEnd,
-      isInSelection,
       isInSecondarySelection,
       isSecondarySelectionStart,
       isSecondarySelectionEnd,
-      holiday
-    };
-  });
+      secondarySelectionIndex
+    });
+  }
+  
+  // Fill in days from next month to complete grid
+  const remainingDays = 42 - days.length; // 6 weeks (42 days) grid
+  for (let i = 1; i <= remainingDays; i++) {
+    const nextMonthDay = addDays(monthEnd, i);
+    days.push({
+      date: nextMonthDay,
+      isCurrentMonth: false,
+      isWeekend: isWeekend(nextMonthDay),
+      isToday: isSameDay(nextMonthDay, new Date()),
+      isHoliday: !!isHoliday(nextMonthDay),
+      holiday: isHoliday(nextMonthDay),
+      isInSelection: false,
+      isSelectionStart: false,
+      isSelectionEnd: false,
+      isInSecondarySelection: false,
+      isSecondarySelectionStart: false,
+      isSecondarySelectionEnd: false
+    });
+  }
+  
+  return days;
 };
 
 // Download a file (for calendar export)

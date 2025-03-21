@@ -1,9 +1,9 @@
 {
-  // Forçando novo deploy - 2024-03-19
   "name": "judicial-vacation-optimizer",
   "version": "1.0.0",
   "description": "Otimizador de férias para magistrados federais - Deploy forçado em 2024-03-19",
   "main": "test-super.js",
+  "type": "module",
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -131,7 +131,6 @@
     "fs-extra": "^11.3.0",
     "function-bind": "^1.1.2",
     "get-nonce": "^1.0.1",
-    "gh-pages": "^6.3.0",
     "glob": "^10.4.5",
     "glob-parent": "^6.0.2",
     "globals": "^15.11.0",
@@ -285,7 +284,7 @@
     "v8-compile-cache-lib": "^3.0.1",
     "vaul": "^0.9.9",
     "victory-vendor": "^36.9.2",
-    "vite": "^5.4.10",
+    "vite": "^5.4.14",
     "which": "^2.0.2",
     "word-wrap": "^1.2.5",
     "wrap-ansi": "^8.1.0",
@@ -296,12 +295,14 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@vitejs/plugin-react-swc": "^3.8.1"
+    "@vitejs/plugin-react-swc": "^3.8.1",
+    "gh-pages": "^6.3.0"
   },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "deploy": "gh-pages -d dist -b temp-pages",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
