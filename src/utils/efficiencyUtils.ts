@@ -3383,3 +3383,89 @@ export const calculateHolidayGain = (period: VacationPeriod | { startDate: Date,
   return periodDetails.workDays > 0 ? 
     Math.round((periodDetails.holidayDays / periodDetails.workDays) * 100) : 0;
 };
+
+export const calculateImprovedEfficiency = (startDate: Date, endDate: Date): number => {
+  // Garantir que as datas estejam no formato correto
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+  
+  // Análise do período
+  const { workDays, weekendDays, holidayDays, totalDays } = calculateDaysBreakdown(start, end);
+  
+  // 1. Valor base: Apenas dias úteis regulares consumidos (custo)
+  const workDaysSpent = workDays;
+  
+  // 2. Ganho real: Apenas feriados que caem em dias úteis (benefício direto)
+  let holidaysOnWorkdays = 0;
+  let currentDate = new Date(start);
+  while (currentDate <= end) {
+    if (isHoliday(currentDate) && !isWeekend(currentDate)) {
+      holidaysOnWorkdays++;
+    }
+    currentDate = addDays(currentDate, 1);
+  }
+  
+  // 3. Valor estratégico: Posicionamento que potencializa fins de semana
+  let strategicValue = 0;
+  
+  // Bônus para início em segunda-feira
+  if (start.getDay() === 1) {
+    strategicValue += 0.3;
+  }
+  
+  // Bônus para término em sexta-feira
+  if (end.getDay() === 5) {
+    strategicValue += 0.3;
+  }
+  
+  // Bônus adicional para período "perfeito" (segunda a sexta)
+  if (start.getDay() === 1 && end.getDay() === 5) {
+    strategicValue += 0.3;
+  }
+  
+  // 4. Valor de "ativação de fim de semana"
+  let weekendActivationValue = 0;
+  
+  // Férias terminando na sexta ativa o fim de semana seguinte
+  if (end.getDay() === 5) {
+    weekendActivationValue += 0.6;
+  }
+  
+  // Férias começando na segunda aproveita o fim de semana anterior
+  if (start.getDay() === 1) {
+    weekendActivationValue += 0.6;
+  }
+  
+  // 5. Penalização por desperdício - MODELO HÍBRIDO
+  let wastePenalty = 0;
+  const nonWorkDays = weekendDays + holidayDays;
+
+  if (nonWorkDays > 0) {
+    // Penalização maior para o primeiro dia (0.35)
+    const firstDayPenalty = 0.35;
+    
+    if (nonWorkDays === 1) {
+      wastePenalty = firstDayPenalty;
+    } else {
+      // Dias adicionais com taxa de crescimento de 1.8
+      let additionalDays = nonWorkDays - 1;
+      let additionalPenalty = 0;
+      
+      for (let i = 0; i < additionalDays; i++) {
+        additionalPenalty += firstDayPenalty * Math.pow(1.8, i);
+      }
+      
+      wastePenalty = firstDayPenalty + additionalPenalty;
+    }
+  }
+  
+  // 6. Cálculo da eficiência final
+  if (workDaysSpent === 0) return 0; // Evitar divisão por zero
+  
+  const efficiency = (holidaysOnWorkdays + strategicValue + weekendActivationValue - wastePenalty) / workDaysSpent;
+  
+  // Aplicar um multiplicador para manter a escala de valores próxima à original
+  return efficiency + 1.0;
+};
