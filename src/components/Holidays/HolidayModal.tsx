@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Calendar, Plus, Trash2, X, Info, AlertTriangle } from 'lucide-react';
 import { Holiday } from '@/types';
 import { 
-  getAllHolidays, 
+  getAllHolidaysForYear,
   addCustomHoliday, 
   removeCustomHoliday, 
   updateCustomHolidays,
@@ -64,7 +64,7 @@ const HolidayModal: React.FC<HolidayModalProps> = ({
   }, [holidays, yearFilter, typeFilter, searchText]);
   
   const loadHolidays = () => {
-    const allHolidays = getAllHolidays();
+    const allHolidays = getAllHolidaysForYear(yearFilter);
     setHolidays(allHolidays);
   };
   

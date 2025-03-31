@@ -7,7 +7,8 @@
  * 3. Verifique o console para os resultados
  */
 
-import { generateRecommendations, findOptimalPeriods } from './efficiencyUtils';
+import { generateImprovedRecommendations } from './improvedEfficiencyUtils';
+import { findOptimalPeriods } from './efficiencyUtils';
 import { getVacationPeriodDetails } from './dateUtils';
 import { addDays } from 'date-fns';
 import testFractionStrategies from './fraction-test';
@@ -39,7 +40,7 @@ const testHolidayBridges = () => {
   console.log(`Período de teste: ${testDate1.toLocaleDateString()} a ${testDate2.toLocaleDateString()}`);
   console.log(`Total de dias: ${vacationPeriod.totalDays}`);
   
-  const recommendations = generateRecommendations(vacationPeriod);
+  const recommendations = generateImprovedRecommendations(vacationPeriod);
   
   // Filtrar apenas recomendações do tipo 'bridge'
   const bridgeRecommendations = recommendations.filter(rec => rec.type === 'bridge');
@@ -66,7 +67,7 @@ const testOptimalShift = () => {
   console.log(`Período de teste: ${testDate1.toLocaleDateString()} a ${testDate2.toLocaleDateString()}`);
   console.log(`Eficiência original: ${(vacationPeriod.efficiency * 100).toFixed(2)}%`);
   
-  const recommendations = generateRecommendations(vacationPeriod);
+  const recommendations = generateImprovedRecommendations(vacationPeriod);
   
   // Filtrar apenas recomendações do tipo 'shift'
   const shiftRecommendations = recommendations.filter(rec => rec.type === 'shift');
@@ -95,7 +96,7 @@ const testSmartSplit = () => {
   console.log(`Total de dias: ${vacationPeriod.totalDays}`);
   console.log(`Eficiência original: ${(vacationPeriod.efficiency * 100).toFixed(2)}%`);
   
-  const recommendations = generateRecommendations(vacationPeriod);
+  const recommendations = generateImprovedRecommendations(vacationPeriod);
   
   // Filtrar apenas recomendações do tipo 'split'
   const splitRecommendations = recommendations.filter(rec => rec.type === 'split');
@@ -122,7 +123,7 @@ const testPredictiveAnalysis = () => {
   console.log(`Total de dias: ${vacationPeriod.totalDays}`);
   console.log(`Eficiência original: ${(vacationPeriod.efficiency * 100).toFixed(2)}%`);
   
-  const recommendations = generateRecommendations(vacationPeriod);
+  const recommendations = generateImprovedRecommendations(vacationPeriod);
   
   // Filtrar apenas recomendações do tipo 'optimize'
   const optimizeRecommendations = recommendations.filter(rec => rec.type === 'optimize');

@@ -11,7 +11,7 @@ import { runOptimizationTests } from '@/utils/test-optimization';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
-import { generateRecommendations } from '@/utils/efficiencyUtils';
+import { generateImprovedRecommendations as generateRecommendations } from '@/utils/improvedEfficiencyUtils';
 import { Lightbulb } from 'lucide-react';
 import HolidayModal from '@/components/Holidays/HolidayModal';
 
@@ -391,7 +391,7 @@ const Index = () => {
         onHolidaysUpdated={handleHolidaysUpdated}
       />
       
-      <main className="flex-grow container mx-auto py-4 px-4 sm:px-6">
+      <main className="flex-grow container mx-auto py-8 px-4 sm:px-6">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">
             Planejador de Férias Judiciais

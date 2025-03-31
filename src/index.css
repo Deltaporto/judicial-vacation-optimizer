@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
@@ -44,6 +43,16 @@
     --medium-efficiency: 31 89% 50%;
     --low-efficiency: 0 84% 60%;
     --weekend: 210 100% 97%;
+    
+    /* Sidebar customizations */
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 210 100% 60%; 
+    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 212.7 26.8% 83.9%;
   }
 
   .dark {
@@ -86,12 +95,32 @@
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-
   body {
     @apply bg-background text-foreground font-inter antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+
+  h1 {
+    @apply text-3xl;
+  }
+
+  h2 {
+    @apply text-2xl;
+  }
+
+  h3 {
+    @apply text-xl;
+  }
+
+  a {
+    @apply text-primary hover:underline;
+  }
+
+  button {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
   }
 }
 
@@ -159,4 +188,24 @@
   .efficiency-low {
     @apply text-red-500 dark:text-red-400;
   }
+}
+
+table {
+  @apply w-full border-collapse;
+}
+
+th, td {
+  @apply p-2 border border-gray-200;
+}
+
+th {
+  @apply bg-gray-50 font-medium text-gray-700;
+}
+
+button, [type="button"], [type="reset"], [type="submit"] {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+}
+
+.btn, .button {
+  @apply bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2;
 }

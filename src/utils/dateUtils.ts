@@ -1,8 +1,7 @@
-import { DateRange, Holiday, VacationPeriod, EfficiencyRating, CalendarDay } from '@/types';
-import { isHoliday, isWeekend, getHolidaysInRange } from './holidayData';
+import { DateRange, Holiday, VacationPeriod, EfficiencyRating, CalendarDay } from '../types';
+import { isHoliday, isWeekend, getAllHolidaysForYear } from './holidayData';
 import { format, addDays, differenceInDays, isSameMonth, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { calculateImprovedEfficiency } from './efficiencyUtils';
 
 // Format date to string
 export const formatDate = (date: Date, formatStr: string = 'dd/MM/yyyy'): string => {
@@ -71,6 +70,84 @@ export const calculateEfficiency = (workDays: number, totalDays: number): number
   return totalDays / workDays;
 };
 
+// Nova função de cálculo de eficiência aprimorada
+export const calculateImprovedEfficiency = (startDate: Date, endDate: Date): number => {
+  // Garantir que as datas estejam no formato correto
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+  
+  // Análise do período
+  const { workDays, weekendDays, holidayDays, totalDays } = calculateDaysBreakdown(start, end);
+  
+  // 1. Valor base: Apenas dias úteis regulares consumidos (custo)
+  const workDaysSpent = workDays;
+  
+  // 2. Ganho real: Apenas feriados que caem em dias úteis (benefício direto)
+  let holidaysOnWorkdays = 0;
+  let currentDate = new Date(start);
+  while (currentDate <= end) {
+    if (isHoliday(currentDate) && !isWeekend(currentDate)) {
+      holidaysOnWorkdays++;
+    }
+    currentDate = addDays(currentDate, 1);
+  }
+  
+  // 3. Valor estratégico: Posicionamento que potencializa fins de semana
+  let strategicValue = 0;
+  
+  // Bônus para início em segunda-feira
+  if (start.getDay() === 1) {
+    strategicValue += 0.3;
+  }
+  
+  // Bônus para término em sexta-feira
+  if (end.getDay() === 5) {
+    strategicValue += 0.3;
+  }
+  
+  // Bônus adicional para período "perfeito" (segunda a sexta)
+  if (start.getDay() === 1 && end.getDay() === 5) {
+    strategicValue += 0.3;
+  }
+  
+  // 4. Valor de "ativação de fim de semana"
+  let weekendActivationValue = 0;
+  
+  // Férias terminando na sexta ativa o fim de semana seguinte
+  if (end.getDay() === 5) {
+    weekendActivationValue += 0.6;
+  }
+  
+  // Férias começando na segunda aproveita o fim de semana anterior
+  if (start.getDay() === 1) {
+    weekendActivationValue += 0.6;
+  }
+  
+  // 5. Cálculo da eficiência final
+  if (workDaysSpent === 0) return 0; // Evitar divisão por zero
+  
+  // 6. Penalização por desperdício de dias de férias em dias não úteis
+  let wastePenalty = 0;
+  
+  // Contar total de dias não úteis (fins de semana + feriados) no período
+  const nonWorkDays = weekendDays + holidayDays;
+  
+  // Calcular proporção de dias não úteis no período total
+  const wasteRatio = nonWorkDays / totalDays;
+  
+  // Aplicar penalização proporcional à quantidade de dias não úteis
+  // A penalização é maior quando a proporção de dias não úteis é maior
+  wastePenalty = wasteRatio * 0.3;
+  
+  const efficiency = (holidaysOnWorkdays + strategicValue + weekendActivationValue - wastePenalty) / workDaysSpent;
+  
+  // Aplicar um multiplicador para manter a escala de valores próxima à original
+  // para compatibilidade com o restante do sistema
+  return efficiency + 1.0; // +1.0 para manter coerência com escala anterior
+};
+
 // Determine efficiency rating based on the value
 export const getEfficiencyRating = (efficiency: number): EfficiencyRating => {
   if (efficiency >= 1.4) return 'high';    // 40% ou mais de dias extras
@@ -81,6 +158,7 @@ export const getEfficiencyRating = (efficiency: number): EfficiencyRating => {
 // Get full vacation period details from a date range
 export const getVacationPeriodDetails = (startDate: Date, endDate: Date): VacationPeriod => {
   const { workDays, weekendDays, holidayDays, totalDays } = calculateDaysBreakdown(startDate, endDate);
+  // Substituindo a antiga função de eficiência pela nova
   const efficiency = calculateImprovedEfficiency(startDate, endDate);
   const efficiencyRating = getEfficiencyRating(efficiency);
   const { isValid, reason } = isValidVacationPeriod(startDate, endDate);
@@ -109,20 +187,30 @@ export const getCalendarDays = (
   const monthEnd = endOfMonth(month);
   const today = new Date();
   
-  // Get start of first week (might be in previous month)
+  // Get start of first week (Sunday)
   const calendarStart = new Date(monthStart);
-  const dayOfWeek = monthStart.getDay();
-  calendarStart.setDate(monthStart.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+  const dayOfWeek = monthStart.getDay(); // 0 for Sunday, 1 for Monday, etc.
+  calendarStart.setDate(monthStart.getDate() - dayOfWeek); // Subtract day index directly
   
-  // Get end of last week (might be in next month)
+  // Get end of last week (Saturday)
   const calendarEnd = new Date(monthEnd);
-  const lastDayOfWeek = monthEnd.getDay();
-  calendarEnd.setDate(monthEnd.getDate() + (lastDayOfWeek === 0 ? 0 : 7 - lastDayOfWeek));
+  const lastDayOfWeek = monthEnd.getDay(); // 0 for Sunday, 1 for Monday, etc.
+  calendarEnd.setDate(monthEnd.getDate() + (6 - lastDayOfWeek)); // Add days to reach Saturday
   
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   
+  // Obter feriados relevantes uma vez para o intervalo do calendário
+  const startYear = calendarStart.getFullYear();
+  const endYear = calendarEnd.getFullYear();
+  let relevantHolidays: Holiday[] = [];
+  for (let year = startYear; year <= endYear; year++) {
+    relevantHolidays.push(...getAllHolidaysForYear(year));
+  }
+  
+  // Mapeia os dias para o formato CalendarDay
   return days.map(date => {
-    const holiday = isHoliday(date);
+    // Corrigido: Buscar o objeto Holiday correspondente à data
+    const holiday = relevantHolidays.find(h => isSameDay(h.date, date));
     
     let isSelected = false;
     let isSelectionStart = false;
@@ -169,6 +257,7 @@ export const getCalendarDays = (
       isInSecondarySelection,
       isSecondarySelectionStart,
       isSecondarySelectionEnd,
+      // Corrigido: Atribuir o objeto Holiday encontrado (ou undefined)
       holiday
     };
   });

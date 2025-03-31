@@ -1,0 +1,131 @@
+# Plano de implementação das melhorias no algoritmo
+
+## 1. Flexibilização dos dias de início das férias
+
+**Etapa 1.1:** Modificar função de geração de períodos
+- Localizar função que gera os períodos iniciais de férias (provavelmente em `efficiencyUtils.ts`)
+- Remover restrição de início apenas em segunda-feira
+- Criar loop que considere todos os 7 dias da semana como início possível
+
+**Etapa 1.2:** Implementar sistema de ponderação por dia da semana
+- Criar objeto de configuração com pesos para cada dia da semana
+```typescript
+const dayWeights = {
+  0: 0.9,  // Domingo
+  1: 1.0,  // Segunda
+  2: 0.8,  // Terça
+  3: 0.7,  // Quarta
+  4: 0.9,  // Quinta
+  5: 1.1,  // Sexta
+  6: 0.8   // Sábado
+};
+```
+- Integrar estes pesos no cálculo de pontuação estratégica
+
+**Etapa 1.3:** Modificar algoritmo de ordenação/seleção
+- Ajustar função que classifica períodos por eficiência
+- Garantir que a eficiência seja o critério principal, não o dia da semana
+
+## 2. Análise específica para feriados em diferentes dias da semana
+
+**Etapa 2.1:** Desenvolver função para classificação de feriados
+```typescript
+function classifyHolidayByWeekday(date: Date): number {
+  const day = date.getDay();
+  // Terças e quintas são estratégicas para pontes
+  if (day === 2 || day === 4) return 2;
+  // Segunda e sexta estendem fim de semana
+  if (day === 1 || day === 5) return 1.5;
+  // Quarta no meio da semana
+  if (day === 3) return 1;
+  // Fins de semana não adicionam valor estratégico
+  return 0;
+}
+```
+
+**Etapa 2.2:** Identificar "feriados prolongáveis"
+- Criar função que detecte feriados que podem gerar pontes eficientes:
+```typescript
+function findExtendableHolidays(year: number): ExtendableHoliday[] {
+  const holidays = getAllHolidays().filter(h => new Date(h.date).getFullYear() === year);
+  return holidays.map(holiday => {
+    const date = new Date(holiday.date);
+    const weekday = date.getDay();
+    const extensionDays = calculateExtensionDays(weekday);
+    return {
+      ...holiday,
+      extensionDays,
+      extensionEfficiency: calculateExtensionEfficiency(weekday, extensionDays)
+    };
+  }).filter(h => h.extensionEfficiency > 1.2);
+}
+```
+
+**Etapa 2.3:** Integrar informações na geração de pontes
+- Modificar função `findPotentialBridges` para priorizar dias próximos aos "feriados prolongáveis"
+- Ajustar cálculo de `strategicScore` para aumentar pontuação baseada na classificação do feriado
+
+## 3. Evitar períodos que incluam feriados
+
+**Etapa 3.1:** Implementar verificação prévia em todos os períodos gerados
+- Modificar função `generateSuperOptimizations` para filtrar períodos que incluem feriados
+```typescript
+const optimizedPeriods = allPotentialPeriods.filter(period => 
+  !verificarFeriadosNoPeriodo(period.startDate, period.endDate)
+);
+```
+
+**Etapa 3.2:** Penalizar períodos com feriados no cálculo de eficiência
+- Caso a exclusão total não seja viável, modificar cálculo de eficiência:
+```typescript
+function calculateEfficiencyScore(startDate: Date, endDate: Date): number {
+  // Cálculo base de eficiência...
+  let score = baseEfficiencyScore;
+  
+  // Verificar se há feriados no período
+  const holidaysInPeriod = countHolidaysInPeriod(startDate, endDate);
+  if (holidaysInPeriod > 0) {
+    // Reduzir pontuação para cada feriado incluído
+    score -= (holidaysInPeriod * 0.15);
+  }
+  
+  return score;
+}
+```
+
+**Etapa 3.3:** Implementar algoritmo de "contorno de feriados"
+- Criar função que identifica feriados no intervalo potencial
+- Gerar recomendações alternativas que terminam antes ou começam depois dos feriados identificados
+
+## 4. Otimizações específicas para Carnaval e outros feriados especiais (exceto Natal)
+
+**Etapa 4.1:** Identificar datas comemorativas importantes
+- Criar lista de feriados especiais com suas particularidades:
+```typescript
+const specialHolidays = [
+  {
+    name: "Carnaval",
+    getDate: (year: number) => calculateCarnavalDate(year),
+    extendBefore: 2,  // 2 dias antes
+    extendAfter: 1,   // 1 dia depois
+    strategicValue: 2.5
+  },
+  // Outros feriados importantes...
+];
+```
+
+**Etapa 4.2:** Criar regras específicas para estes períodos
+- Desenvolver função que gera recomendações customizadas para cada feriado especial
+- Incorporar conhecimento específico sobre padrões de atividade judiciária em torno destes feriados
+
+**Etapa 4.3:** Integrar ao sistema principal
+- Adicionar as recomendações especiais ao conjunto de super otimizações geradas
+- Garantir que recebam destaque na apresentação para o usuário
+
+## Testes e validação
+
+**Etapa final:** Testar as alterações de forma incremental
+- Executar testes unitários para cada componente modificado
+- Realizar testes de integração para verificar o comportamento completo
+- Comparar os resultados antes e depois das alterações para verificar melhorias
+- Verificar a aplicação dos critérios de ponderação e filtragem nas recomendações geradas
