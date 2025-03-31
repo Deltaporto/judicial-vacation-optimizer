@@ -1,5 +1,5 @@
-import { DateRange, Holiday, VacationPeriod, EfficiencyRating, CalendarDay } from '@/types';
-import { isHoliday, isWeekend, getHolidaysInRange } from './holidayData';
+import { DateRange, Holiday, VacationPeriod, EfficiencyRating, CalendarDay } from '../types';
+import { isHoliday, isWeekend, getAllHolidaysForYear } from './holidayData';
 import { format, addDays, differenceInDays, isSameMonth, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -128,7 +128,20 @@ export const calculateImprovedEfficiency = (startDate: Date, endDate: Date): num
   // 5. Cálculo da eficiência final
   if (workDaysSpent === 0) return 0; // Evitar divisão por zero
   
-  const efficiency = (holidaysOnWorkdays + strategicValue + weekendActivationValue) / workDaysSpent;
+  // 6. Penalização por desperdício de dias de férias em dias não úteis
+  let wastePenalty = 0;
+  
+  // Contar total de dias não úteis (fins de semana + feriados) no período
+  const nonWorkDays = weekendDays + holidayDays;
+  
+  // Calcular proporção de dias não úteis no período total
+  const wasteRatio = nonWorkDays / totalDays;
+  
+  // Aplicar penalização proporcional à quantidade de dias não úteis
+  // A penalização é maior quando a proporção de dias não úteis é maior
+  wastePenalty = wasteRatio * 0.3;
+  
+  const efficiency = (holidaysOnWorkdays + strategicValue + weekendActivationValue - wastePenalty) / workDaysSpent;
   
   // Aplicar um multiplicador para manter a escala de valores próxima à original
   // para compatibilidade com o restante do sistema
@@ -174,20 +187,30 @@ export const getCalendarDays = (
   const monthEnd = endOfMonth(month);
   const today = new Date();
   
-  // Get start of first week (might be in previous month)
+  // Get start of first week (Sunday)
   const calendarStart = new Date(monthStart);
-  const dayOfWeek = monthStart.getDay();
-  calendarStart.setDate(monthStart.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+  const dayOfWeek = monthStart.getDay(); // 0 for Sunday, 1 for Monday, etc.
+  calendarStart.setDate(monthStart.getDate() - dayOfWeek); // Subtract day index directly
   
-  // Get end of last week (might be in next month)
+  // Get end of last week (Saturday)
   const calendarEnd = new Date(monthEnd);
-  const lastDayOfWeek = monthEnd.getDay();
-  calendarEnd.setDate(monthEnd.getDate() + (lastDayOfWeek === 0 ? 0 : 7 - lastDayOfWeek));
+  const lastDayOfWeek = monthEnd.getDay(); // 0 for Sunday, 1 for Monday, etc.
+  calendarEnd.setDate(monthEnd.getDate() + (6 - lastDayOfWeek)); // Add days to reach Saturday
   
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   
+  // Obter feriados relevantes uma vez para o intervalo do calendário
+  const startYear = calendarStart.getFullYear();
+  const endYear = calendarEnd.getFullYear();
+  let relevantHolidays: Holiday[] = [];
+  for (let year = startYear; year <= endYear; year++) {
+    relevantHolidays.push(...getAllHolidaysForYear(year));
+  }
+  
+  // Mapeia os dias para o formato CalendarDay
   return days.map(date => {
-    const holiday = isHoliday(date);
+    // Corrigido: Buscar o objeto Holiday correspondente à data
+    const holiday = relevantHolidays.find(h => isSameDay(h.date, date));
     
     let isSelected = false;
     let isSelectionStart = false;
@@ -234,6 +257,7 @@ export const getCalendarDays = (
       isInSecondarySelection,
       isSecondarySelectionStart,
       isSecondarySelectionEnd,
+      // Corrigido: Atribuir o objeto Holiday encontrado (ou undefined)
       holiday
     };
   });

@@ -3,7 +3,7 @@
 export type HolidayType = 'national' | 'judicial' | 'recess';
 
 export interface Holiday {
-  date: string; // ISO format: YYYY-MM-DD
+  date: Date;
   name: string;
   type: HolidayType;
   abrangencia?: string; // Texto de abrangência (ex: "Municipal (Rio de Janeiro)")
@@ -68,14 +68,19 @@ export interface CalendarDay {
 
 export interface Recommendation {
   id: string;
-  type: 'extend' | 'reduce' | 'shift' | 'split' | 'combine' | 'bridge' | 'super_bridge' | 'optimize' | 'optimal_fraction' | 'hybrid' | 'hybrid_bridge_split' | 'optimal_hybrid' | 'recess';
+  type: 'extend' | 'reduce' | 'shift' | 'split' | 'combine' | 'bridge' | 'super_bridge' | 
+        'optimize' | 'optimal_fraction' | 'hybrid' | 'hybrid_bridge_split' | 'optimal_hybrid' | 
+        'recess' | 'error' | 'holiday_extension' | 'clean_period';
   title: string;
   description: string;
-  suggestedDateRange: DateRange;
+  suggestedDateRange: {
+    startDate: Date;
+    endDate: Date;
+  };
   efficiencyGain: number;
   daysChanged: number;
   fractionedPeriods?: VacationPeriod[]; // Para recomendações de tipo optimal_fraction
-  strategicScore?: number; // Pontuação estratégica para ordenação e avaliação
+  strategicScore: number;
 }
 
 export interface CourtSettings {

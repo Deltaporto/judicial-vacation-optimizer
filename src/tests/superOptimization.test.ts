@@ -392,6 +392,56 @@ function testMultiYearOptimizations() {
   return results;
 }
 
+describe('Super Otimizações', () => {
+  const nextYear = new Date().getFullYear() + 1;
+
+  test('deve gerar super otimizações válidas para o próximo ano', () => {
+    const resultado = testSuperOptimizations(nextYear, false);
+    
+    expect(resultado.totalSuperOptimizations).toBeGreaterThan(0);
+    expect(resultado.totalHolidays).toBeGreaterThan(0);
+    expect(resultado.totalBridges).toBeGreaterThan(0);
+  });
+
+  test('deve identificar pontes estratégicas corretamente', () => {
+    const bridges = findPotentialBridges(nextYear, 5);
+    
+    expect(bridges.length).toBeGreaterThan(0);
+    bridges.forEach(bridge => {
+      expect(bridge.strategicScore).toBeGreaterThan(0);
+      expect(bridge.workDays).toBeGreaterThanOrEqual(0);
+      expect(bridge.startDate).toBeDefined();
+      expect(bridge.endDate).toBeDefined();
+    });
+  });
+
+  test('não deve incluir períodos inválidos nas recomendações', () => {
+    const superOptimizations = generateSuperOptimizations(nextYear);
+    
+    superOptimizations.forEach(opt => {
+      const duration = differenceInDays(opt.suggestedDateRange.endDate, opt.suggestedDateRange.startDate) + 1;
+      
+      // Períodos devem ter no mínimo 5 dias
+      expect(duration).toBeGreaterThanOrEqual(5);
+      
+      // Datas devem estar no ano correto
+      expect(isSameYear(opt.suggestedDateRange.startDate, new Date(nextYear, 0, 1))).toBe(true);
+      expect(isSameYear(opt.suggestedDateRange.endDate, new Date(nextYear, 0, 1))).toBe(true);
+    });
+  });
+
+  test('deve calcular corretamente a eficiência das recomendações', () => {
+    const superOptimizations = generateSuperOptimizations(nextYear);
+    
+    superOptimizations.forEach(opt => {
+      expect(opt.efficiencyGain).toBeGreaterThan(1); // Ganho de eficiência deve ser maior que 1 (100%)
+      expect(opt.strategicScore).toBeGreaterThan(0);
+      expect(opt.title).toBeDefined();
+      expect(opt.type).toBeDefined();
+    });
+  });
+});
+
 // Executa o teste para o próximo ano por padrão
 console.log("Iniciando teste de super otimizações...");
 const resultado = testNextYearOptimizations();

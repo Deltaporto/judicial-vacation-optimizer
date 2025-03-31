@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { VacationPeriod, DateRange, Recommendation } from '@/types';
-import { generateRecommendations, generateSuperOptimizations, calculateHolidayGain } from '@/utils/efficiencyUtils';
+import { calculateHolidayGain } from '@/utils/efficiencyUtils';
+import { generateImprovedRecommendations, findYearlyOptimizations } from '@/utils/improvedEfficiencyUtils';
 import { formatDate, getVacationPeriodDetails } from '@/utils/dateUtils';
 import { differenceInDays } from 'date-fns';
 import { 
@@ -28,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { v4 as uuidv4 } from 'uuid';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface VacationRecommendationsProps {
   vacationPeriod: VacationPeriod | null;
@@ -43,6 +45,7 @@ const VacationRecommendations = forwardRef<
   const [superOptimizations, setSuperOptimizations] = useState<Recommendation[]>([]);
   const [showSuperOptimizations, setShowSuperOptimizations] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<'efficiency' | 'date'>('efficiency');
   const isMobile = useIsMobile();
   
   // Expõe a função handleShowSuperOptimizations para o componente pai via ref
@@ -65,7 +68,8 @@ const VacationRecommendations = forwardRef<
   // Generate recommendations when vacation period changes
   useEffect(() => {
     if (vacationPeriod && vacationPeriod.isValid) {
-      const newRecommendations = generateRecommendations(vacationPeriod);
+      // Usar generateImprovedRecommendations para recomendações baseadas no período
+      const newRecommendations = generateImprovedRecommendations(vacationPeriod);
       setRecommendations(newRecommendations);
       // Reset to standard recommendations when period changes
       setShowSuperOptimizations(false);
@@ -101,8 +105,8 @@ const VacationRecommendations = forwardRef<
       const currentYear = new Date().getFullYear();
       console.log("Gerando super otimizações para o ano:", currentYear);
       
-      // Tentar gerar as super otimizações
-      const optimizations = generateSuperOptimizations(currentYear);
+      // Usar a nova função findYearlyOptimizations
+      const optimizations = findYearlyOptimizations(currentYear);
       console.log("Super otimizações geradas:", optimizations.length);
       
       if (optimizations.length === 0) {
@@ -227,21 +231,30 @@ const VacationRecommendations = forwardRef<
       "extend": ["extend", "reduce"],
       "shift": ["shift"],
       "optimize": ["optimize"],
-      "bridge": ["bridge", "super_bridge"],
+      "emendas": ["bridge", "super_bridge"],
       "fraction": ["split", "optimal_fraction"]
     };
     
     const source = showSuperOptimizations ? superOptimizations : recommendations;
     
-    console.log("Fonte de recomendações:", 
-                showSuperOptimizations ? "Super Otimizações" : "Recomendações normais", 
-                "Total:", source.length);
-    
-    if (activeTab === "all") {
-      return source;
+    let filtered = activeTab === "all" ? 
+      source : 
+      source.filter(rec => activeTabs[activeTab]?.includes(rec.type));
+
+    // Ordenar as recomendações se estiver em Super Otimizações
+    if (showSuperOptimizations) {
+      filtered = [...filtered].sort((a, b) => {
+        if (sortBy === 'efficiency') {
+          // Ordenar por pontuação estratégica (maior primeiro)
+          return (b.strategicScore || 0) - (a.strategicScore || 0);
+        } else {
+          // Ordenar por data (mais próxima primeiro)
+          return a.suggestedDateRange.startDate.getTime() - b.suggestedDateRange.startDate.getTime();
+        }
+      });
     }
     
-    return source.filter(rec => activeTabs[activeTab].includes(rec.type));
+    return filtered;
   };
   
   // Empty state component for no selected period
@@ -298,18 +311,53 @@ const VacationRecommendations = forwardRef<
   );
   
   // Header component
-  const RecommendationsHeader = () => (
-    <div className="flex flex-col mb-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">
+  const RecommendationsHeader = () => {
+    return (
+      <div className="flex flex-col mb-4">
+        <h2 className="text-lg font-medium mb-2">
           {showSuperOptimizations ? 'Super Otimizações' : 'Recomendações'}
         </h2>
+        
+        {showSuperOptimizations && (
+          <>
+            <p className="text-sm text-gray-600 mb-3">
+              Essas são as melhores opções de férias para o ano atual, calculadas automaticamente.
+            </p>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">Ordenar por:</span>
+              <ToggleGroup 
+                type="single" 
+                value={sortBy} 
+                onValueChange={(value) => value && setSortBy(value as 'efficiency' | 'date')}
+                className="bg-gray-50/50 rounded-md p-0.5"
+              >
+                <ToggleGroupItem 
+                  value="efficiency" 
+                  className="text-xs px-2 py-0.5 data-[state=on]:bg-white data-[state=on]:shadow-sm data-[state=on]:text-blue-600 rounded transition-all"
+                  aria-label="Ordenar por eficiência"
+                >
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  Relevância
+                </ToggleGroupItem>
+                <ToggleGroupItem 
+                  value="date" 
+                  className="text-xs px-2 py-0.5 data-[state=on]:bg-white data-[state=on]:shadow-sm data-[state=on]:text-blue-600 rounded transition-all"
+                  aria-label="Ordenar por data"
+                >
+                  <CalendarIcon className="h-3 w-3 mr-1" />
+                  Data
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </>
+        )}
         
         {showSuperOptimizations && vacationPeriod && vacationPeriod.isValid && (
           <Button 
             variant="ghost" 
             size="sm"
-            className="h-9 px-3"
+            className="h-9 px-3 mt-3"
             onClick={() => setShowSuperOptimizations(false)}
           >
             Ver recomendações específicas
@@ -329,57 +377,67 @@ const VacationRecommendations = forwardRef<
           </Button>
         )}
       </div>
-      
-      {showSuperOptimizations && (
-        <p className="text-sm text-gray-600 mt-2">
-          Essas são as melhores opções de férias para o ano atual, calculadas automaticamente.
-        </p>
-      )}
-    </div>
-  );
+    );
+  };
   
   // Filter tabs component
   const FilterTabs = () => {
     // For mobile devices, use a scrollable toggle group
     if (isMobile) {
       return (
-        <div className="mb-4 overflow-auto pb-2 -mx-2 px-2">
-          <ToggleGroup 
-            type="single" 
-            value={activeTab} 
-            onValueChange={(value) => value && setActiveTab(value)}
-            className="flex w-max space-x-1"
-          >
-            <ToggleGroupItem value="all" className="whitespace-nowrap">Todas</ToggleGroupItem>
-            <ToggleGroupItem value="extend" className="whitespace-nowrap">Ajustar</ToggleGroupItem>
-            <ToggleGroupItem value="shift" className="whitespace-nowrap">Deslocar</ToggleGroupItem>
-            <ToggleGroupItem value="optimize" className="whitespace-nowrap">Otimizar</ToggleGroupItem>
-            <ToggleGroupItem value="bridge" className="whitespace-nowrap">Pontes</ToggleGroupItem>
-            <ToggleGroupItem value="fraction" className="whitespace-nowrap">Fracionar</ToggleGroupItem>
-            <ToggleGroupItem value="recess" className="whitespace-nowrap">Recessos</ToggleGroupItem>
-          </ToggleGroup>
-        </div>
+        <TooltipProvider>
+          <div className="mb-4 overflow-auto pb-2 -mx-2 px-2">
+            <ToggleGroup 
+              type="single" 
+              value={activeTab} 
+              onValueChange={(value) => value && setActiveTab(value)}
+              className="flex w-max space-x-0.5 bg-gray-50/50 p-0.5 rounded-lg"
+            >
+              <ToggleGroupItem value="all" className="px-4 py-1.5 border-r border-gray-200 data-[state=on]:bg-white data-[state=on]:shadow-sm rounded-md">Todas</ToggleGroupItem>
+              <ToggleGroupItem value="extend" className="px-4 py-1.5 border-r border-gray-200 data-[state=on]:bg-white data-[state=on]:shadow-sm rounded-md">Ajustar</ToggleGroupItem>
+              <ToggleGroupItem value="shift" className="px-4 py-1.5 border-r border-gray-200 data-[state=on]:bg-white data-[state=on]:shadow-sm rounded-md">Deslocar</ToggleGroupItem>
+              <ToggleGroupItem value="optimize" className="px-4 py-1.5 border-r border-gray-200 data-[state=on]:bg-white data-[state=on]:shadow-sm rounded-md">Otimizar</ToggleGroupItem>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ToggleGroupItem value="emendas" className="px-4 py-1.5 border-r border-gray-200 data-[state=on]:bg-white data-[state=on]:shadow-sm rounded-md">Emendas</ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Sugestões para conectar feriados/fins de semana (1+ dias úteis)</p>
+                </TooltipContent>
+              </Tooltip>
+              <ToggleGroupItem value="fraction" className="px-4 py-1.5 data-[state=on]:bg-white data-[state=on]:shadow-sm rounded-md">Fracionar</ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+        </TooltipProvider>
       );
     }
 
     // For desktop, use a more responsive layout with two rows
     return (
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-        {/* Primeira linha com 4 botões */}
-        <TabsList className="w-full grid grid-cols-4 gap-1 mb-1">
-          <TabsTrigger value="all" className="px-2">Todas</TabsTrigger>
-          <TabsTrigger value="extend" className="px-2">Ajustar</TabsTrigger>
-          <TabsTrigger value="shift" className="px-2">Deslocar</TabsTrigger>
-          <TabsTrigger value="optimize" className="px-2">Otimizar</TabsTrigger>
-        </TabsList>
-        
-        {/* Segunda linha com 3 botões */}
-        <TabsList className="w-full grid grid-cols-3 gap-1">
-          <TabsTrigger value="bridge" className="px-2">Pontes</TabsTrigger>
-          <TabsTrigger value="fraction" className="px-2">Fracionar</TabsTrigger>
-          <TabsTrigger value="recess" className="px-2">Recessos</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <TooltipProvider>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
+          {/* Primeira linha com 4 botões */}
+          <TabsList className="w-full grid grid-cols-4 gap-0.5 mb-2 bg-gray-50/50 p-0.5 rounded-lg">
+            <TabsTrigger value="all" className="px-4 py-1.5 border-r border-gray-200 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Todas</TabsTrigger>
+            <TabsTrigger value="extend" className="px-4 py-1.5 border-r border-gray-200 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Ajustar</TabsTrigger>
+            <TabsTrigger value="shift" className="px-4 py-1.5 border-r border-gray-200 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Deslocar</TabsTrigger>
+            <TabsTrigger value="optimize" className="px-4 py-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Otimizar</TabsTrigger>
+          </TabsList>
+          
+          {/* Segunda linha com 2 botões */}
+          <TabsList className="w-full grid grid-cols-2 gap-0.5 bg-gray-50/50 p-0.5 rounded-lg">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger value="emendas" className="px-4 py-1.5 border-r border-gray-200 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Emendas</TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Sugestões para conectar feriados/fins de semana (1+ dias úteis)</p>
+              </TooltipContent>
+            </Tooltip>
+            <TabsTrigger value="fraction" className="px-4 py-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">Fracionar</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </TooltipProvider>
     );
   };
   
@@ -409,23 +467,50 @@ const VacationRecommendations = forwardRef<
     
     const metrics = calculateVacationMetrics();
     
+    // Atualizar também o título da recomendação e descrição
+    const getRecommendationDetails = (type: string, workDays: number, startDate: Date, endDate: Date) => {
+      const isShortPeriod = workDays < 5;
+      const term = isShortPeriod ? 'folga' : 'férias';
+      const termPlural = isShortPeriod ? 'folgas' : 'férias';
+
+      let title = '';
+      let description = '';
+
+      if (type === 'bridge' || type === 'super_bridge') {
+        title = `Emenda Estratégica (${workDays}d)`;
+        description = `Aproveite ${metrics.totalRestDays} dias de descanso usando apenas ${workDays} ${workDays === 1 ? 'dia' : 'dias'} de ${term} entre ${formatDate(startDate)} e ${formatDate(endDate)}. Ideal para conectar feriados ou fins de semana.`;
+      } else {
+        title = recommendation.title;
+        description = recommendation.description.replace(/férias/g, term);
+      }
+
+      return { title, description };
+    };
+    
+    const details = getRecommendationDetails(
+      recommendation.type,
+      metrics.workDays,
+      recommendation.suggestedDateRange.startDate,
+      recommendation.suggestedDateRange.endDate
+    );
+    
     return (
       <Card className="mb-4 hover:shadow-md transition-shadow duration-200">
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
-            <CardTitle className="text-base">{recommendation.title}</CardTitle>
+            <CardTitle className="text-base">{details.title}</CardTitle>
             <Badge className={`${getRecommendationColor(recommendation.type)} flex items-center`}>
               {getRecommendationIcon(recommendation.type)}
               <span className="ml-1">
-                {recommendation.type === 'super_bridge' ? 'Super Ponte' :
-                 recommendation.type === 'bridge' ? 'Ponte' :
+                {recommendation.type === 'super_bridge' ? 'Super Emenda' :
+                 recommendation.type === 'bridge' ? 'Emenda' :
                  recommendation.type === 'extend' ? 'Estender' :
                  recommendation.type === 'reduce' ? 'Reduzir' :
                  recommendation.type === 'shift' ? 'Deslocar' :
                  recommendation.type === 'split' ? 'Fracionar' :
                  recommendation.type === 'optimal_fraction' ? 'Fração Ideal' :
                  recommendation.type === 'hybrid' ? 'Estratégia Combinada' :
-                 recommendation.type === 'hybrid_bridge_split' ? 'Ponte + Fração' :
+                 recommendation.type === 'hybrid_bridge_split' ? 'Emenda + Fração' :
                  recommendation.type === 'optimal_hybrid' ? 'Híbrido Ideal' :
                  recommendation.type === 'optimize' ? 'Otimizar' :
                  'Personalizar'}
@@ -436,25 +521,27 @@ const VacationRecommendations = forwardRef<
             {recommendation.suggestedDateRange.startDate && recommendation.suggestedDateRange.endDate && (
               <>
                 {formatDate(recommendation.suggestedDateRange.startDate)} - {formatDate(recommendation.suggestedDateRange.endDate)}
-                
-                <div className="flex flex-col mt-1 gap-0.5">
-                  <span className="flex items-center text-purple-600 text-xs">
-                    <CalendarCheck className="h-3 w-3 mr-1" />
-                    {metrics.workDays} dias úteis = {metrics.totalRestDays} dias consecutivos de descanso
-                  </span>
-                  {metrics.savedVacationDays > 0 && (
-                    <span className="flex items-center text-green-600 text-sm font-medium">
-                      <Zap className="h-3 w-3 mr-1" />
-                      Economize {metrics.savedVacationDays} {metrics.savedVacationDays === 1 ? 'dia' : 'dias'} de férias!
-                    </span>
-                  )}
-                </div>
               </>
             )}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-600">{recommendation.description}</p>
+        <CardContent className="pt-2">
+          <p className="text-sm text-gray-600 mb-2">{details.description}</p>
+          
+          {recommendation.suggestedDateRange.startDate && recommendation.suggestedDateRange.endDate && (
+            <div className="flex flex-col gap-0.5">
+              <span className="flex items-center text-purple-600 text-xs">
+                <CalendarCheck className="h-3 w-3 mr-1" />
+                {metrics.workDays} {metrics.workDays === 1 ? 'dia útil' : 'dias úteis'} = {metrics.totalRestDays} dias consecutivos de descanso
+              </span>
+              {metrics.savedVacationDays > 0 && metrics.workDays >= 5 && (
+                <span className="flex items-center text-green-600 text-sm font-medium">
+                  <Zap className="h-3 w-3 mr-1" />
+                  Economize {metrics.savedVacationDays} {metrics.savedVacationDays === 1 ? 'dia' : 'dias'} de férias!
+                </span>
+              )}
+            </div>
+          )}
           
           {/* Mostrar pontuação estratégica somente em modo de desenvolvimento */}
           {process.env.NODE_ENV === 'development' && recommendation.strategicScore && (

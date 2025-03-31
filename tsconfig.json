@@ -5,6 +5,8 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
@@ -17,6 +19,11 @@
     "strictNullChecks": false
   },
   "include": ["src"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/utils/run-tests.js"
+  ],
   "ts-node": {
     "transpileOnly": true,
     "compilerOptions": {

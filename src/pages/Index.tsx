@@ -11,7 +11,7 @@ import { runOptimizationTests } from '@/utils/test-optimization';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
-import { generateRecommendations } from '@/utils/efficiencyUtils';
+import { generateImprovedRecommendations as generateRecommendations } from '@/utils/improvedEfficiencyUtils';
 import { Lightbulb } from 'lucide-react';
 import HolidayModal from '@/components/Holidays/HolidayModal';
 

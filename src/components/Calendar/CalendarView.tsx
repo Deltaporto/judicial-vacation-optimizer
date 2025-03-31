@@ -22,7 +22,7 @@ interface CalendarViewProps {
   onClearSelection?: () => void; // Nova prop para limpar a seleção
 }
 
-const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 const CalendarView: React.FC<CalendarViewProps> = ({ 
   selectedRange, 
@@ -299,7 +299,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             <CalendarIcon className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-medium">
+            {console.log('Rendering CalendarView Header - currentMonth:', currentMonth)}
+            <h2 className="text-lg font-medium min-w-[150px] text-center">
               {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
             </h2>
           </div>
