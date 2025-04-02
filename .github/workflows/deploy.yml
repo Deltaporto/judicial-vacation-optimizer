@@ -22,20 +22,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
+  # Build job
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # Use v4 for checkout
+      - name: Set up Node
+        uses: actions/setup-node@v4 # Use v4 for setup-node
+        with:
+          node-version: 18 # Certifique-se que esta é a versão Node.js correta para seu projeto
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci # Use npm ci for cleaner installs in CI
+      - name: Build
+        run: npm run build # Execute o comando de build do seu projeto (geralmente 'npm run build' para Vite)
+      - name: Setup Pages
+        uses: actions/configure-pages@v4 # Use v4 for configure-pages
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3 # Use v3 for upload-pages-artifact
+        with:
+          # Upload dist directory
+          path: './dist' # O diretório de saída padrão do Vite
+
+  # Deployment job
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    needs: build # O deploy depende que o job 'build' tenha sucesso
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-          cache: 'npm'
-      - name: Clean install
-        run: |
-          rm -f package ▋
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 # Use v4 for deploy-pages
