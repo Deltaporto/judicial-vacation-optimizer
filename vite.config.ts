@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import path from "path";
 
 // https://vitejs.dev/config/
@@ -10,11 +10,28 @@ export default defineConfig(({ mode }) => ({
   },
   base: '/judicial-vacation-optimizer/',
   plugins: [
-    react(),
-  ].filter(Boolean),
+    react({
+      include: "**/*.{jsx,js,tsx,ts}",  // Processar JSX em arquivos .js também
+      babel: {
+        presets: [
+          ["@babel/preset-react", {
+            "runtime": "automatic"
+          }]
+        ]
+      }
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+    extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json']
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      loader: {
+        '.js': 'jsx',
+      },
     },
   },
 }));

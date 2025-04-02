@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-const HolidayModal = ({ open, onOpenChange, onHolidaysUpdated }) => {
+
+export const HolidayModal = ({ open, onOpenChange, onHolidaysUpdated }) => {
     const [holidays, setHolidays] = useState([]);
     const [filteredHolidays, setFilteredHolidays] = useState([]);
     const [yearFilter, setYearFilter] = useState(new Date().getFullYear());
@@ -355,4 +356,3 @@ const HolidayModal = ({ open, onOpenChange, onHolidaysUpdated }) => {
       </DialogContent>
     </Dialog>);
 };
-export default HolidayModal;
