@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { generateRecommendations } from '@/utils/efficiencyUtils';
 import { Lightbulb } from 'lucide-react';
-import { HolidayModal } from '@/components/Holidays/HolidayModal';
+import HolidayModal from '@/components/Holidays/HolidayModal';
 const Index = () => {
     const [selectedDate, setSelectedDate] = useState(null);
     const [selectedRange, setSelectedRange] = useState(null);

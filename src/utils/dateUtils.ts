@@ -252,21 +252,43 @@ export const downloadFile = (content: string, filename: string, mimeType: string
   URL.revokeObjectURL(url);
 };
 
-// Generate ICS file content for calendar export
+// Generate ICS file content
 export const generateICSFile = (vacationPeriod: VacationPeriod): string => {
-  const startDateICS = format(vacationPeriod.startDate, "yyyyMMdd");
-  const endDateICS = format(addDays(vacationPeriod.endDate, 1), "yyyyMMdd"); // Add one day for exclusive end date in ICS
-  
+  const start = vacationPeriod.startDate;
+  const end = addDays(vacationPeriod.endDate, 1); // ICS end date is exclusive
+
+  const formatDateICS = (date: Date): string => {
+    return format(date, "yyyyMMdd'T'HHmmss'Z'");
+  };
+
+  const uid = `${format(new Date(), 'yyyyMMddHHmmss')}-${Math.random().toString(36).substring(2, 15)}@judicial-vacation-optimizer`;
+
   return `BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Otimizador de Férias para Magistrados//PT-BR
+PRODID:-//SeuNome//OtimizadorFériasJudiciais//PT
 BEGIN:VEVENT
-SUMMARY:Férias
-DESCRIPTION:Período de férias com eficiência ${(vacationPeriod.efficiency * 100).toFixed(2)}%
-DTSTART;VALUE=DATE:${startDateICS}
-DTEND;VALUE=DATE:${endDateICS}
-STATUS:CONFIRMED
+UID:${uid}
+DTSTAMP:${formatDateICS(new Date())}
+DTSTART;VALUE=DATE:${format(start, 'yyyyMMdd')}
+DTEND;VALUE=DATE:${format(end, 'yyyyMMdd')}
+SUMMARY:Período de Férias Otimizado
+DESCRIPTION:Período de férias sugerido pelo Otimizador de Férias Judiciais.\nTotal de Dias: ${vacationPeriod.totalDays}\nDias Úteis: ${vacationPeriod.workDays}\nFins de Semana: ${vacationPeriod.weekendDays}\nFeriados: ${vacationPeriod.holidayDays}\nEficiência: ${(vacationPeriod.efficiency * 100).toFixed(1)}%
 TRANSP:TRANSPARENT
 END:VEVENT
 END:VCALENDAR`;
+};
+
+// Check if two date ranges overlap
+export const dateRangesOverlap = (
+  startDateA: Date, endDateA: Date, 
+  startDateB: Date, endDateB: Date
+): boolean => {
+  // Normalize dates to avoid time issues
+  const startA = new Date(startDateA); startA.setHours(0,0,0,0);
+  const endA = new Date(endDateA); endA.setHours(23,59,59,999);
+  const startB = new Date(startDateB); startB.setHours(0,0,0,0);
+  const endB = new Date(endDateB); endB.setHours(23,59,59,999);
+  
+  // Overlap occurs if range A starts before B ends AND range A ends after B starts
+  return startA <= endB && endA >= startB;
 };

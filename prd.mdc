@@ -1,0 +1,236 @@
+# Especificação Técnica do Otimizador de Férias Judiciais
+
+## 1. Visão Geral do Sistema
+...
+
+## 2. Requisitos Funcionais
+...
+
+## 3. Modelo de Dados
+
+### 3.1 Entidades Principais
+
+#### 3.1.1 Holiday (Feriado)
+```typescript
+interface Holiday {
+  date: string;            // Formato: 'YYYY-MM-DD'
+  name: string;            // Nome do feriado
+  type: string;            // 'national', 'judicial', 'recess', etc.
+  abrangencia?: string;    // Opcional para feriados municipais/regionais
+}
+```
+
+#### 3.1.2 DateRange (Intervalo de Datas)
+```typescript
+interface DateRange {
+  startDate: Date;         // Data de início
+  endDate: Date;           // Data de término
+}
+```
+
+#### 3.1.3 PeriodData (Período de Férias - Retorno das Estratégias)
+*Nota: Esta interface representa os dados brutos retornados pelas estratégias de otimização. A interface `Recommendation` (abaixo) é a versão formatada e apresentada ao usuário.*
+```typescript
+interface PeriodData {
+  startDate: Date;         // Data de início
+  endDate: Date;           // Data de término
+  totalDays: number;       // Total de dias no período
+  workDays: number;        // Dias úteis
+  weekendDays: number;     // Fins de semana
+  holidayDays: number;     // Feriados
+  efficiency: number;      // Valor calculado de eficiência (geralmente (weekendDays + holidayDays) / totalDays)
+  efficiencyRating: EfficiencyRating; // 'high', 'medium', 'low'
+  isValid: boolean;        // Se o período é válido
+  invalidReason?: string;  // Razão para invalidade, se aplicável
+
+  // Campos adicionados pelas estratégias
+  score: number;           // Pontuação estratégica calculada pela estratégia específica
+  type: OptimizationType;  // Tipo da estratégia que gerou o período (enum)
+  metadata?: any;          // Metadados específicos da estratégia (ex: feriado adjacente)
+  efficiencyGain: number;  // Ganho de eficiência calculado pela estratégia (pode variar)
+}
+```
+
+#### 3.1.4 Recommendation (Recomendação Formatada)
+*Nota: Representa a recomendação final após processamento pelo `RecommendationBuilder`.*
+```typescript
+interface Recommendation {
+  id: string;              // Identificador único
+  type: string;            // Tipo da recomendação (baseado na estratégia original ou híbrida)
+  title: string;           // Título formatado em português
+  description: string;     // Descrição detalhada em português
+  suggestedDateRange: DateRange; // Período sugerido
+  // Ganho de eficiência final, potencialmente ajustado pelo RecommendationBuilder
+  efficiencyGain: number;
+  // Pontuação estratégica original da estratégia, usada para ordenação
+  strategicScore: number;
+  fractionedPeriods?: PeriodData[]; // Para recomendações de fracionamento
+  metadata?: any;          // Metadados relevantes preservados
+}
+```
+
+#### 3.1.5 CalendarDay (Dia no Calendário)
+...
+
+#### 3.1.6 FractionedVacationPeriods (Períodos Fracionados)
+...
+
+### 3.2 Enumerações
+
+#### 3.2.1 EfficiencyRating
+```typescript
+type EfficiencyRating = 'high' | 'medium' | 'low';
+```
+
+#### 3.2.2 OptimizationType
+```typescript
+enum OptimizationType {
+  CONTINUOUS = 'CONTINUOUS',
+  BRIDGE = 'BRIDGE',
+  HOLIDAY_ADJACENCY = 'HOLIDAY_ADJACENCY',
+  JUDICIAL_RECESS = 'JUDICIAL_RECESS',
+  // Adicionar outros tipos conforme necessário
+}
+```
+
+## 4. Algoritmos Principais
+
+### 4.1 Arquitetura de Otimização
+
+#### 4.1.1 Padrão Strategy
+O sistema utiliza o padrão de design Strategy para implementar diferentes estratégias de otimização de férias. Cada estratégia implementa a interface comum `IOptimizationStrategy`, que agora retorna uma Promise para lidar com operações potencialmente assíncronas:
+
+```typescript
+interface IOptimizationStrategy {
+  findPeriods(config: SuperOptimizationConfig): Promise<PeriodData[]>;
+}
+```
+
+#### 4.1.2 Configuração do Sistema (`SuperOptimizationConfig`)
+```typescript
+interface SuperOptimizationConfig {
+  startYear: number;
+  futureYears: number;
+  maxResults: number;
+  scoreWeights: {
+    efficiency: number;
+    strategic: number;
+    holiday: number;
+    recess: number;
+  };
+  holidays: Holiday[];
+}
+```
+
+#### 4.1.3 Orquestrador Principal (`SuperOptimizationOrchestrator`)
+O `SuperOptimizationOrchestrator` coordena todas as estratégias de otimização:
+1. **Coleta assíncrona** de `PeriodData` de todas as estratégias (`Promise.all`).
+2. Remove sobreposições com base na `strategicScore`.
+3. Seleciona os melhores períodos não sobrepostos.
+4. Converte `PeriodData` em `Recommendation` usando o `RecommendationBuilder`.
+5. Aplica ordenação final e filtragem com base na `Recommendation`.
+
+### 4.2 Estratégias de Otimização
+*Nota: Todas as estratégias agora retornam `Promise<PeriodData[]>` e preenchem todos os campos da interface `PeriodData`, incluindo `score`, `type`, `metadata` e `efficiencyGain`.*
+
+#### 4.2.1 Estratégia de Períodos Contínuos (`ContinuousPeriodsStrategy`)
+A `ContinuousPeriodsStrategy` busca períodos contínuos otimizados:
+- Analisa períodos de 30, 15, 10 e 7 dias
+- Calcula eficiência baseada em dias úteis vs. não úteis
+- Aplica bônus para períodos que:
+  - Começam na segunda-feira (+0.3)
+  - Terminam na sexta-feira (+0.3)
+  - São "perfeitos" (segunda a sexta) (+0.3 adicional)
+
+#### 4.2.2 Estratégia de Pontes (`BridgePeriodsStrategy`)
+A `BridgePeriodsStrategy` identifica pontes estratégicas:
+- Busca gaps de até 3 dias úteis entre feriados/fins de semana
+- Prioriza pontes que conectam feriados (vs. apenas fins de semana)
+- Aplica bônus para:
+  - Pontes mais curtas (+0.2 por dia economizado)
+  - Conexão com feriados em dias úteis (+0.3 por feriado)
+  - Posicionamento estratégico (segunda/sexta) (+0.2)
+
+*Nota Importante:* As pontes são projetadas como estratégias de "folga" para maximizar pequenos intervalos e conectar dias não úteis. Portanto, elas **não** estão sujeitas à regra de duração mínima de 5 dias aplicada aos períodos de férias formais.
+
+#### 4.2.3 Estratégia de Adjacência a Feriados (`HolidayAdjacencyStrategy`)
+A `HolidayAdjacencyStrategy` otimiza períodos próximos a feriados:
+- Analisa períodos antes e depois de cada feriado
+- Considera importância do feriado na pontuação
+- Prioriza feriados importantes (Natal: 1.0, Carnaval: 0.8, etc.)
+- Aplica bônus para:
+  - Adjacência direta ao feriado (+0.3)
+  - Posicionamento estratégico (+0.3)
+  - Feriados de maior importância (até +1.0)
+
+#### 4.2.4 Estratégia de Recesso Judicial (`JudicialRecessStrategy`)
+A `JudicialRecessStrategy` otimiza períodos durante o recesso:
+- Foca no período de 20/12 a 06/01
+- Evita períodos que incluem Natal e Ano Novo
+- Aplica bônus para:
+  - Períodos totalmente dentro do recesso (+0.5)
+  - Início no começo do recesso (+0.2)
+  - Término próximo ao fim do recesso (+0.2)
+  - Períodos mais longos (até +0.5)
+
+### 4.3 Builder de Recomendações (`RecommendationBuilder`)
+
+#### 4.3.1 Funcionalidade
+Responsável por converter `PeriodData` (retorno bruto das estratégias) em `Recommendation` (formato final para a UI):
+- Gera IDs únicos para cada recomendação.
+- Formata títulos e descrições em português com base no `type` e `metadata` do `PeriodData`.
+- Calcula ou ajusta `efficiencyGain` para a recomendação final.
+- Mapeia o `score` do `PeriodData` para o `strategicScore` da `Recommendation`.
+- Preserva `metadata` relevantes.
+
+#### 4.3.2 Interface `Recommendation` (Repetida para referência)
+```typescript
+interface Recommendation {
+  id: string;
+  type: string; // Ex: 'Ponte Estratégica', 'Adjacência a Feriado'
+  title: string;
+  description: string;
+  suggestedDateRange: DateRange;
+  efficiencyGain: number;
+  strategicScore: number;
+  metadata?: any;
+}
+```
+
+### 4.4 Utilitários Auxiliares
+
+[Manter as seções 4.3.1 a 4.3.4 existentes, apenas renumerando para 4.4.1 a 4.4.4] 
+
+### 4.5 Estratégia de Testes
+
+#### 4.5.1 Testes de Unidade para Estratégias
+Cada estratégia de otimização implementa testes unitários:
+- Verificação de entradas válidas e inválidas
+- Teste de cálculo de pontuação
+- Validação de comportamentos esperados para diferentes configurações
+- Teste de filtros e limitações
+
+#### 4.5.2 Testes do RecommendationBuilder
+- Testes de formatação de diferentes tipos de recomendação
+- Validação das transformações de PeriodData para Recommendation
+- Verificação da aplicação de bônus por tipo de recomendação
+- Teste de formatação em português
+
+#### 4.5.3 Testes do Orquestrador
+- Verificação da coleta de resultados de estratégias
+- Validação da detecção de sobreposições
+- Teste do algoritmo de seleção não-sobreposta
+- Validação da ordenação final
+- Tratamento de erros e exceções
+
+#### 4.5.4 Testes de Integração
+- Ciclo completo desde a configuração até recomendações
+- Validação end-to-end do fluxo principal
+- Teste com diferentes configurações de ano e pesos
+- Validação da consistência de resultados entre execuções 
+
+## 5. Componentes da Interface
+...
+
+## 6. Workflows e Interações
+... 

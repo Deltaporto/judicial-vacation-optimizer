@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { generateRecommendations, generateSuperOptimizations } from '@/utils/efficiencyUtils';
 import { formatDate, getVacationPeriodDetails } from '@/utils/dateUtils';
+import { getAllHolidays } from '@/utils/holidayData';
 import { differenceInDays } from 'date-fns';
 import { ArrowRight, Calendar, Zap, TrendingUp, Lightbulb, HandHelping, Star, CalendarCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -62,14 +63,25 @@ const VacationRecommendations = forwardRef(({ vacationPeriod, onRecommendationSe
         };
     }, []); // A dependência vazia significa que este efeito só é executado na montagem/desmontagem
     // Generate super optimizations when requested
-    const handleShowSuperOptimizations = () => {
+    const handleShowSuperOptimizations = async () => {
         try {
             const currentYear = new Date().getFullYear();
-            console.log("Gerando super otimizações para o ano:", currentYear);
-            // Tentar gerar as super otimizações
-            const optimizations = generateSuperOptimizations(currentYear);
+            const futureYears = 2; // Define how many future years to consider
+            console.log(`Gerando super otimizações para os anos: ${currentYear} a ${currentYear + futureYears}`);
+
+            // Get holidays for the relevant years
+            const holidays = getAllHolidays(currentYear, futureYears);
+            console.log(`Feriados carregados: ${holidays.length} no total`);
+
+            // Pass the holidays array to the function
+            const optimizations = await generateSuperOptimizations(currentYear, futureYears, 20, holidays);
+            
             console.log("Super otimizações geradas:", optimizations.length);
-            if (optimizations.length === 0) {
+            
+            if (!Array.isArray(optimizations)) {
+                console.error("ERRO: A função generateSuperOptimizations não retornou um array!");
+                setSuperOptimizations([]);
+            } else if (optimizations.length === 0) {
                 console.error("ERRO: A função gerou uma lista vazia de super otimizações!");
                 // Criar pelo menos uma recomendação forçada para exibir
                 const fallbackRecommendation = {
@@ -328,7 +340,7 @@ const VacationRecommendations = forwardRef(({ vacationPeriod, onRecommendationSe
               </span>
             </Badge>
           </div>
-          <CardDescription className="text-xs">
+          <div className="text-xs text-muted-foreground pt-1">
             {recommendation.suggestedDateRange.startDate && recommendation.suggestedDateRange.endDate && (<>
                 {formatDate(recommendation.suggestedDateRange.startDate)} - {formatDate(recommendation.suggestedDateRange.endDate)}
                 
@@ -343,10 +355,10 @@ const VacationRecommendations = forwardRef(({ vacationPeriod, onRecommendationSe
                     </span>)}
                 </div>
               </>)}
-          </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-gray-600">{recommendation.description}</p>
+          <div className="text-sm text-gray-600">{recommendation.description}</div>
           
           {/* Mostrar pontuação estratégica somente em modo de desenvolvimento */}
           {process.env.NODE_ENV === 'development' && recommendation.strategicScore && (<div className="mt-2 text-xs text-gray-400">

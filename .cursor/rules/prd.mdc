@@ -1,0 +1,1129 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Especificação Técnica do Otimizador de Férias Judiciais
+
+## 1. Visão Geral do Sistema
+
+### 1.1 Objetivo
+O Otimizador de Férias Judiciais é uma aplicação web projetada para auxiliar magistrados e outros profissionais do sistema judiciário a maximizarem a eficiência de seus períodos de férias. O sistema analisa padrões de calendário, feriados nacionais, recessos judiciais e fins de semana para sugerir períodos otimizados de férias que proporcionem o máximo benefício em termos de dias de descanso.
+
+### 1.2 Público-Alvo
+- Magistrados
+- Servidores do Poder Judiciário
+- Profissionais que seguem o calendário judicial brasileiro
+
+### 1.3 Valor Proposto
+- Maximizar o período efetivo de descanso
+- Otimizar estrategicamente o posicionamento das férias no calendário
+- Facilitar o planejamento anual de férias
+- Permitir decisões informadas sobre fracionamento de férias
+
+## 2. Requisitos Funcionais
+
+### 2.1 Funcionalidades Primárias
+
+#### 2.1.1 Seleção de Período de Férias
+- Seleção via calendário interativo
+- Visualização clara de feriados e fins de semana
+- Indicação visual de períodos selecionados
+- Validação de período mínimo de férias (5 dias conforme Resolução nº 940/2025 do CJF)
+
+#### 2.1.2 Análise de Eficiência
+- Cálculo automático da eficiência do período selecionado
+- Visualização detalhada da composição do período (dias úteis, fins de semana, feriados)
+- Classificação da eficiência (Alta, Média, Baixa)
+- Exibição do ganho real em dias de folga (porcentagem)
+
+#### 2.1.3 Recomendações Inteligentes
+- Geração automática de recomendações para otimização do período selecionado
+- Propostas de extensão no início ou fim do período
+- Sugestões de deslocamento de período para maximizar eficiência
+- Recomendações de fracionamento estratégico
+- Identificação de "pontes" entre feriados
+- Opções de fracionamento otimizado (6 períodos de 5 dias)
+
+#### 2.1.4 Exportação para Calendário
+- Exportação do período selecionado para formato ICS
+- Inclusão de metadados relevantes no arquivo exportado
+
+### 2.2 Funcionalidades Secundárias
+
+#### 2.2.1 Super Otimizações
+- Geração independente de recomendações para o ano inteiro
+- Análise abrangente de oportunidades sem período inicial selecionado
+- Combinações híbridas de estratégias para máxima eficiência
+
+#### 2.2.2 Personalização de Feriados
+- Importação de feriados municipais/regionais
+- Adição manual de feriados específicos
+- Gestão de feriados personalizados
+
+#### 2.2.3 Visualização de Dados
+- Representação gráfica da composição do período (gráfico de pizza)
+- Indicadores visuais de eficiência
+- Destaques visuais para períodos recomendados
+
+## 3. Modelo de Dados
+
+### 3.1 Entidades Principais
+
+#### 3.1.1 Holiday (Feriado)
+```typescript
+interface Holiday {
+  date: string;            // Formato: 'YYYY-MM-DD'
+  name: string;            // Nome do feriado
+  type: string;            // 'national', 'judicial', 'recess', etc.
+  abrangencia?: string;    // Opcional para feriados municipais/regionais
+}
+```
+
+#### 3.1.2 DateRange (Intervalo de Datas)
+```typescript
+interface DateRange {
+  startDate: Date;         // Data de início
+  endDate: Date;           // Data de término
+}
+```
+
+#### 3.1.3 VacationPeriod (Período de Férias)
+```typescript
+interface VacationPeriod {
+  startDate: Date;         // Data de início
+  endDate: Date;           // Data de término
+  totalDays: number;       // Total de dias no período
+  workDays: number;        // Dias úteis
+  weekendDays: number;     // Fins de semana
+  holidayDays: number;     // Feriados
+  efficiency: number;      // Valor calculado de eficiência
+  efficiencyRating: EfficiencyRating; // 'high', 'medium', 'low'
+  isValid: boolean;        // Se o período é válido (min. 5 dias)
+  invalidReason?: string;  // Razão para invalidade, se aplicável
+}
+```
+
+#### 3.1.4 Recommendation (Recomendação)
+```typescript
+interface Recommendation {
+  id: string;              // Identificador único
+  type: string;            // 'extend', 'shift', 'split', 'bridge', etc.
+  title: string;           // Título da recomendação
+  description: string;     // Descrição detalhada
+  suggestedDateRange: DateRange; // Período sugerido
+  efficiencyGain: number;  // Ganho de eficiência em relação ao período original
+  daysChanged: number;     // Quantidade de dias alterados
+  strategicScore?: number; // Pontuação estratégica calculada
+  fractionedPeriods?: VacationPeriod[]; // Para recomendações de fracionamento
+}
+```
+
+#### 3.1.5 CalendarDay (Dia no Calendário)
+```typescript
+interface CalendarDay {
+  date: Date;              // Data do dia
+  isWeekend: boolean;      // Se é fim de semana
+  isCurrentMonth: boolean; // Se pertence ao mês atual do calendário
+  isToday: boolean;        // Se é o dia atual
+  isSelected: boolean;     // Se está selecionado
+  isSelectionStart: boolean; // Se é o início da seleção
+  isSelectionEnd: boolean;   // Se é o fim da seleção
+  isInSelection: boolean;    // Se está dentro da seleção
+  isInSecondarySelection: boolean; // Para seleções secundárias/comparativas
+  isSecondarySelectionStart: boolean;
+  isSecondarySelectionEnd: boolean;
+  holiday?: Holiday;       // Informações de feriado, se aplicável
+}
+```
+
+#### 3.1.6 FractionedVacationPeriods (Períodos Fracionados)
+```typescript
+interface FractionedVacationPeriods {
+  isFractionated: boolean;     // Indicador de fracionamento
+  periods: VacationPeriod[];   // Array de períodos
+  combinedEfficiency: number;  // Eficiência combinada
+  efficiencyGain: number;      // Ganho em relação a período único
+}
+```
+
+### 3.2 Enumerações
+
+#### 3.2.1 EfficiencyRating
+```typescript
+type EfficiencyRating = 'high' | 'medium' | 'low';
+```
+
+## 4. Algoritmos Principais
+
+### 4.1 Cálculo de Eficiência
+
+#### 4.1.1 Eficiência Básica
+A eficiência básica é calculada como a razão entre o total de dias e os dias úteis:
+```typescript
+const efficiency = totalDays / workDays;
+```
+
+#### 4.1.2 Eficiência Aprimorada
+A eficiência aprimorada considera múltiplos fatores para uma avaliação mais precisa:
+
+1. **Valor Base**: Dias úteis a serem consumidos
+2. **Ganho Real**: Feriados que caem em dias úteis (benefício direto)
+3. **Valor Estratégico**: Bonificações por posicionamento estratégico
+   - Início na segunda-feira: +0.3
+   - Término na sexta-feira: +0.3
+   - Período "perfeito" (segunda a sexta): +0.3 adicional
+4. **Valor de Ativação de Fim de Semana**:
+   - Término na sexta (ativa o fim de semana seguinte): +0.6
+   - Início na segunda (aproveita o fim de semana anterior): +0.6
+5. **Penalização por Desperdício (Método Híbrido)**:
+   - Penalização significativa para o primeiro dia não útil: 0.35
+   - Penalização crescente para cada dia adicional, usando fator de 1.8
+   - Algoritmo de penalização mais intuitivo que reflete melhor o custo real de dias desperdiçados
+
+Algoritmo completo:
+```typescript
+// Cálculo dos componentes de bonificação
+const holidaysOnWorkdays = /* feriados em dias úteis */;
+const strategicValue = /* bonificações por posicionamento */;
+const weekendActivationValue = /* bônus por conexão com fins de semana */;
+
+// Penalização por desperdício - MÉTODO HÍBRIDO
+let wastePenalty = 0;
+const nonWorkDays = weekendDays + holidayDays;
+
+if (nonWorkDays > 0) {
+  // Penalização para o primeiro dia não-útil (mais substancial)
+  const firstDayPenalty = 0.35;
+  
+  if (nonWorkDays == 1) {
+    wastePenalty = firstDayPenalty;
+  } else {
+    // Primeiro dia tem penalidade fixa maior
+    // Dias adicionais têm penalidade incremental com taxa de crescimento mais acentuada
+    let additionalDays = nonWorkDays - 1;
+    let additionalPenalty = 0;
+    
+    for (let i = 0; i < additionalDays; i++) {
+      // Cada dia adicional tem penalidade 80% maior que o anterior
+      additionalPenalty += firstDayPenalty * Math.pow(1.8, i);
+    }
+    
+    wastePenalty = firstDayPenalty + additionalPenalty;
+  }
+}
+
+// Cálculo da eficiência final
+const efficiency = (holidaysOnWorkdays + strategicValue + weekendActivationValue - wastePenalty) / workDaysSpent;
+return efficiency + 1.0; // +1.0 para manter coerência com escala anterior
+```
+
+#### 4.1.3 Eficiência Ajustada
+Para determinadas análises (como fracionamento), é utilizada uma versão ajustada que foca no ganho real:
+
+```typescript
+// Valor base de eficiência é 1.0 (sem ganho adicional)
+let efficiency = 1.0;
+
+// Ganho por feriados em dias úteis
+if (holidaysOnWorkdays > 0) {
+  efficiency += (holidaysOnWorkdays / workDays);
+}
+
+// Bônus para posicionamento estratégico
+if (startDayOfWeek === 1) { efficiency += 0.05; } // Segunda-feira
+if (endDayOfWeek === 5) { efficiency += 0.05; }   // Sexta-feira
+
+// Penalização por desperdício (usando abordagem híbrida)
+const nonWorkDays = weekendDays + holidayDays;
+if (nonWorkDays > 0) {
+  const firstDayPenalty = 0.35;
+  
+  if (nonWorkDays == 1) {
+    efficiency -= firstDayPenalty / workDays;
+  } else {
+    // Calculando penalidade com crescimento exponencial para cada dia adicional
+    let totalPenalty = firstDayPenalty;
+    for (let i = 1; i < nonWorkDays; i++) {
+      totalPenalty += firstDayPenalty * Math.pow(1.8, i-1);
+    }
+    efficiency -= totalPenalty / workDays;
+  }
+}
+
+return Math.max(1.0, efficiency);
+```
+
+#### 4.1.4 Classificação de Eficiência
+A eficiência calculada é classificada em:
+- **Alta**: ≥ 1.4 (40% ou mais de ganho)
+- **Média**: ≥ 1.2 e < 1.4 (20% a 40% de ganho)
+- **Baixa**: < 1.2 (menos de 20% de ganho)
+
+### 4.2 Algoritmos de Recomendação
+
+#### 4.2.1 Detecção de Oportunidades Próximas
+A função `findNearbyOpportunities()` analisa dias adjacentes ao período selecionado:
+
+1. Examina até 5 dias antes e depois do período selecionado
+2. Identifica clusters contínuos de dias não úteis (feriados e fins de semana)
+3. Contabiliza quantos dias úteis estão nestes clusters
+4. Avalia a praticidade da extensão com base nos dias da semana:
+   - Se já começa na segunda-feira, marcar extensão anterior como menos prática
+   - Se já termina na sexta-feira, marcar extensão posterior como menos prática
+5. Retorna oportunidades antes e depois, com indicadores de praticidade
+
+#### 4.2.2 Identificação de Pontes Potenciais
+A função `findPotentialBridges()` identifica oportunidades de "pontes" entre feriados/fins de semana:
+
+1. Coleta todos os dias não úteis do ano (feriados e fins de semana)
+2. Identifica clusters com pequenos gaps (até 3 dias úteis)
+3. Verifica se o gap forma um período válido de férias:
+   - Duração total de pelo menos 5 dias
+   - Não inclui feriados dentro do gap (ponte deve conectar, não incluir feriados)
+4. Calcula pontuação estratégica considerando:
+   - Eficiência básica
+   - Dias da semana (começo e fim)
+   - Proximidade com feriados importantes
+   - ROI (Return on Investment) - eficiência por dia útil
+   - Duração da ponte (preferência por pontes compactas)
+
+#### 4.2.3 Fracionamento Otimizado
+A função `findOptimalSplitPoint()` encontra o ponto ideal para dividir um período:
+
+1. Testa cada possível ponto de divisão
+2. Verifica a validade de ambos os períodos resultantes (mínimo 5 dias cada)
+3. Aplica ajustes por posicionamento estratégico:
+   - Bonificação para segundo período começando na segunda: +0.10
+   - Bonificação para primeiro período terminando na sexta: +0.10
+   - Penalização para segundo período começando em fim de semana: -0.15
+4. Avalia equilíbrio entre os períodos (bonificação para divisões entre 40/60 e 60/40)
+5. Adiciona bônus por flexibilidade: +0.03 (3%)
+6. Calcula eficiência combinada usando média ponderada com base na duração
+
+#### 4.2.4 Deslocamento Otimizado
+A função `findOptimalShift()` identifica o melhor deslocamento para o período selecionado:
+
+1. Examina deslocamentos de até 10 dias em ambas direções
+2. Para cada deslocamento, calcula eficiência e pontuação de posicionamento
+3. Aplica ajustes estratégicos específicos:
+   - Início na segunda-feira: +0.10
+   - Término na sexta-feira: +0.10
+   - Período "perfeito" (segunda a sexta): +0.15
+   - Início/fim em fim de semana: penalidades de -0.10 a -0.15
+4. Considera proximidade com feriados: +0.08 por feriado próximo
+5. Seleciona deslocamento com maior eficiência, priorizando melhorias significativas (>3%)
+
+#### 4.2.5 Períodos Fracionados Otimizados
+A função `findOptimalFractionedPeriods()` identifica os melhores 6 períodos de 5 dias:
+
+1. Gera todos os possíveis períodos de 5 dias do ano
+2. Calcula eficiência ajustada para cada período
+3. Aplica bonificações estratégicas:
+   - Início na segunda-feira: +0.15
+   - Término na sexta-feira: +0.15
+   - Período "perfeito": +0.3
+   - Feriados em dias úteis: +0.08 por feriado
+4. Penaliza períodos que incluem fins de semana: -0.1 por dia
+5. Seleciona períodos não-sobrepostos com hierarquia de prioridade:
+   - Períodos ideais (segunda a sexta)
+   - Períodos com feriados em dias úteis
+   - Períodos com melhor eficiência geral
+6. Calcula eficiência combinada e ganho em relação a período contínuo
+
+#### 4.2.6 Super Otimizações
+A função `generateSuperOptimizations()` realiza análise holística para todo o ano:
+
+1. Analisa o ano atual e dois anos seguintes
+2. Identifica todas as pontes potenciais (gaps até 10 dias)
+3. Mapeia recessos judiciais (20/12 a 06/01)
+4. Encontra períodos completos (30 dias) otimizados
+5. Identifica quinzenas (15 dias) e dezenas (10) estratégicas
+6. Localiza mini-férias (7 dias) de alta eficiência
+7. Analisa meses com alta concentração de feriados
+8. Seleciona conjuntos não-sobrepostos de recomendações
+9. Ordena por tipo, pontuação estratégica e eficiência
+
+#### 4.2.7 Recomendações Híbridas
+O sistema gera recomendações híbridas combinando estratégias compatíveis:
+
+1. Define mapeamento de combinações compatíveis:
+   - Split + (Extend, Shift, Bridge, SuperBridge)
+   - Extend + (Split, Shift, Bridge)
+   - Shift + (Extend, Split, Bridge)
+   - Bridge + (Extend, Split)
+   - SuperBridge + Split
+2. Para cada par compatível:
+   - Calcula ganho combinado (com fator 0.85 para evitar contagem dupla)
+   - Determina tipo específico de híbrido
+   - Cria descrição detalhada da estratégia combinada
+   - Aplica bônus específicos (ex: ponte + fracionamento: +15%)
+   - Recalcula períodos fracionados para deslocamentos/extensões
+
+#### 4.2.8 Otimização por Adjacência com Feriados
+A função `optimizeByHolidayAdjacency()` identifica e prioriza períodos que criam adjacência direta com feriados:
+
+1. Mapeia todos os feriados do ano
+2. Para cada feriado, gera períodos de férias que:
+   - Terminam no dia imediatamente anterior ao feriado
+   - Começam no dia imediatamente posterior ao feriado
+3. Calcula o "bloco contínuo" total para cada período (férias + feriados + fins de semana)
+4. Aplica bônus de eficiência significativo (+0.8) para adjacência direta
+5. Prioriza períodos baseados em:
+   - Tamanho total do bloco contínuo
+   - Proporção entre dias de descanso totais e dias úteis de férias (ROI)
+   - Proximidade com o período selecionado pelo usuário (se aplicável)
+6. Apresenta recomendações prioritárias de adjacência em destaque
+
+### 4.3 Utilitários Auxiliares
+
+#### 4.3.1 Verificação de Fim de Semana
+```typescript
+const isWeekend = (date: Date): boolean => {
+  const day = date.getDay();
+  return day === 0 || day === 6; // 0 = domingo, 6 = sábado
+}
+```
+
+#### 4.3.2 Contagem de Feriados em Dias Úteis
+```typescript
+const countHolidaysOnWorkDays = (startDate: Date, endDate: Date): number => {
+  let count = 0;
+  let currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    if (isHoliday(currentDate) && !isWeekend(currentDate)) {
+      count++;
+    }
+    currentDate = addDays(currentDate, 1);
+  }
+  
+  return count;
+}
+```
+
+#### 4.3.3 Cálculo de Ganho por Feriados
+```typescript
+const calculateHolidayGain = (period: VacationPeriod | { startDate: Date, endDate: Date }): number => {
+  // Se recebemos um VacationPeriod completo, usamos seus dados
+  if ('holidayDays' in period && 'workDays' in period) {
+    return period.workDays > 0 ? Math.round((period.holidayDays / period.workDays) * 100) : 0;
+  }
+  
+  // Caso contrário, calculamos os dados do período
+  const periodDetails = getVacationPeriodDetails(period.startDate, period.endDate);
+  return periodDetails.workDays > 0 ? 
+    Math.round((periodDetails.holidayDays / periodDetails.workDays) * 100) : 0;
+}
+```
+
+#### 4.3.4 Verificação de Sobreposição
+```typescript
+const dateRangesOverlap = (
+  startDateA: Date, endDateA: Date, 
+  startDateB: Date, endDateB: Date
+): boolean => {
+  return (startDateA <= endDateB && endDateA >= startDateB);
+}
+```
+
+## 5. Componentes da Interface
+
+### 5.1 Calendário Interativo
+
+#### 5.1.1 Requisitos Funcionais
+- Visualização mensal com navegação
+- Destaque para feriados e fins de semana
+- Seleção de intervalo de datas via clique/arraste
+- Indicação visual da seleção atual
+- Exibição clara de dias não permitidos
+- Validação em tempo real do período mínimo
+
+#### 5.1.2 Propriedades Visuais
+- Código de cores para tipos de dias:
+  - Dias úteis: normal
+  - Fins de semana: azul
+  - Feriados: roxo
+  - Dia atual: destaque especial
+  - Dias selecionados: contorno/preenchimento distinto
+  - Dias fora do mês atual: menor opacidade
+
+### 5.2 Calculadora de Eficiência
+
+#### 5.2.1 Requisitos Funcionais
+- Exibição automática ao selecionar período válido
+- Cálculo e apresentação da eficiência do período
+- Exibição detalhada da composição do período
+- Visualização gráfica (gráfico de pizza)
+- Classificação de eficiência com indicador visual
+- Recomendações de melhorias
+- Botão para exportar para calendário
+
+#### 5.2.2 Propriedades Visuais
+- Cartão com resumo do período selecionado
+- Indicador colorido da classificação de eficiência:
+  - Alta: verde
+  - Média: azul
+  - Baixa: cinza
+- Estatísticas em cards com código de cores
+- Gráfico de pizza com segmentos para:
+  - Dias úteis: cinza
+  - Fins de semana: azul
+  - Feriados em dias úteis: roxo
+- Barra de progresso para eficiência
+- Recomendações com ícones intuitivos
+
+### 5.3 Painel de Recomendações
+
+#### 5.3.1 Requisitos Funcionais
+- Geração automática de recomendações para o período selecionado
+- Listagem ordenada por relevância e impacto
+- Detalhamento de cada recomendação:
+  - Tipo (Extensão, Deslocamento, Fracionamento, Ponte)
+  - Descrição com datas e justificativa
+  - Ganho de eficiência esperado
+  - Botão para aplicar a recomendação
+- Visualização prévia do efeito da recomendação
+- Possibilidade de comparação entre diferentes recomendações
+
+#### 5.3.2 Propriedades Visuais
+- Cards agrupados por tipo de recomendação
+- Ícones distintivos para cada tipo:
+  - Extensão: seta para direita/esquerda
+  - Deslocamento: setas bidirecionais
+  - Fracionamento: símbolo de divisão
+  - Ponte: ícone de ponte
+- Código de cores por impacto:
+  - Alto impacto: verde
+  - Médio impacto: azul
+  - Baixo impacto: cinza
+- Destaque visual para períodos recomendados no calendário
+- Barra de progresso comparativa para eficiência atual vs. recomendada
+- Destaque visual para recomendações que criam adjacência direta com feriados
+- Exibição do "bloco contínuo total" para cada recomendação (férias + feriados + fins de semana)
+- Nova classificação "Adjacência Ótima" para períodos com adjacência direta a feriados
+
+### 5.4 Super Otimizações
+
+#### 5.4.1 Requisitos Funcionais
+- Acesso via botão/menu dedicado
+- Geração de recomendações para todo o ano
+- Filtros por tipo, mês, ou duração
+- Listagem ordenada por relevância
+- Detalhamento similar ao painel de recomendações regular
+- Possibilidade de aplicar qualquer recomendação ao calendário
+
+#### 5.4.2 Propriedades Visuais
+- Design similar ao painel de recomendações regular
+- Ícones distintivos para tipos específicos:
+  - Super ponte: ícone de ponte com estrela
+  - Fracionamento ideal: ícone de calendário dividido
+  - Recesso: ícone especial para período de recesso
+- Indicadores de ano (para recomendações multi-ano)
+- Visualização prévia ao passar o mouse
+
+## 6. Workflows e Interações
+
+### 6.1 Fluxo Principal
+
+1. **Inicialização**
+   - Carregar calendário com feriados pré-configurados
+   - Exibir mês atual com destaque para o dia presente
+   - Apresentar estado inicial da calculadora vazio
+
+2. **Seleção de Período**
+   - Usuário seleciona data inicial via clique
+   - Arrasta para data final ou clica em outra data
+   - Sistema valida o período (mínimo 5 dias)
+   - Destaque visual para o período selecionado
+
+3. **Análise de Eficiência**
+   - Sistema calcula automaticamente a eficiência
+   - Exibe detalhamento na calculadora de eficiência
+   - Apresenta gráfico e classificação
+   - Mostra recomendações básicas de melhoria
+
+4. **Geração de Recomendações**
+   - Sistema analisa o período e gera recomendações
+   - Apresenta recomendações ordenadas por relevância
+   - Usuário pode explorar cada recomendação
+   - Visualização prévia da recomendação no calendário
+
+5. **Aplicação de Recomendação**
+   - Usuário seleciona recomendação desejada
+   - Sistema atualiza a seleção no calendário
+   - Recalcula eficiência com nova seleção
+   - Atualiza painel de recomendações
+
+6. **Exportação**
+   - Usuário solicita exportação para calendário
+   - Sistema gera arquivo ICS com os dados
+   - Usuário baixa e importa em seu aplicativo de calendário
+
+### 6.2 Fluxo de Super Otimizações
+
+1. **Inicialização**
+   - Usuário acessa funcionalidade via botão/menu
+   - Sistema gera recomendações para o ano inteiro
+   - Apresenta listagem ordenada por relevância
+
+2. **Exploração**
+   - Usuário navega pelas recomendações
+   - Aplica filtros conforme necessário
+   - Sistema reordena resultados
+
+3. **Seleção**
+   - Usuário seleciona recomendação desejada
+   - Sistema aplica ao calendário
+   - Atualiza calculadora de eficiência
+   - Retorna ao fluxo principal
+
+### 6.3 Fluxo de Personalização de Feriados
+
+1. **Acesso**
+   - Usuário acessa configurações/personalização
+   - Sistema exibe feriados atuais e opções
+
+2. **Importação**
+   - Usuário seleciona município/região
+   - Sistema importa feriados correspondentes
+   - Atualiza calendário e cálculos
+
+3. **Adição Manual**
+   - Usuário adiciona feriado personalizado
+   - Fornece data, nome e tipo
+   - Sistema adiciona ao calendário
+   - Atualiza cálculos se necessário
+
+## 7. Considerações Técnicas
+
+### 7.1 Arquitetura Geral
+
+#### 7.1.1 Frontend
+- Framework: React com TypeScript
+- Build Tool: Vite
+- Estado: Estado local com hooks React
+- Componentes: 
+  - Estrutura modular com separação clara de responsabilidades
+  - Radix UI para componentes acessíveis
+  - Shadcn/ui para componentes estilizados
+- Estilização: 
+  - Tailwind CSS para estilos utilitários
+  - PostCSS para processamento de CSS
+- Testes:
+  - Jest para testes unitários
+  - Testing Library para testes de componentes
+- Visualização de Dados: Recharts para gráficos
+- Ferramentas de Desenvolvimento:
+  - TypeScript para tipagem estática
+  - ESLint para linting
+  - Prettier para formatação de código
+  - Git para controle de versão
+  - GitHub Actions para CI/CD
+
+#### 7.1.2 Utilitários e Bibliotecas
+- Manipulação de Datas: date-fns
+- Geração de IDs: uuid
+- Testes Python: pytest (para testes de algoritmos)
+- Outros utilitários conforme necessidade
+
+### 7.2 Estrutura de Arquivos
+
+```
+judicial-vacation-optimizer/
+├── src/
+│   ├── components/          # Componentes React reutilizáveis
+│   │   ├── Calendar/       # Componentes relacionados ao calendário
+│   │   ├── EfficiencyCalculator/  # Calculadora de eficiência
+│   │   ├── RecommendationsPanel/  # Painel de recomendações
+│   │   ├── SuperOptimizations/    # Componentes de super otimizações
+│   │   └── ui/            # Componentes de UI básicos
+│   ├── pages/             # Páginas/rotas da aplicação
+│   ├── hooks/             # Custom hooks React
+│   ├── lib/               # Bibliotecas e configurações
+│   ├── scripts/           # Scripts utilitários
+│   ├── tests/             # Testes unitários e de integração
+│   ├── types/             # Definições de tipos TypeScript
+│   ├── utils/             # Funções utilitárias
+│   │   ├── dateUtils.ts   # Manipulação de datas
+│   │   ├── efficiencyUtils.ts  # Cálculos de eficiência
+│   │   ├── holidayData.ts # Dados de feriados
+│   │   └── recommendationUtils.ts  # Lógica de recomendações
+│   ├── App.tsx            # Componente principal
+│   ├── main.tsx           # Ponto de entrada
+│   └── index.css          # Estilos globais
+├── public/                # Arquivos estáticos
+├── assets/               # Recursos de mídia
+├── dist/                 # Build de produção
+├── .github/              # Configurações do GitHub
+├── .vscode/              # Configurações do VS Code
+├── .cursor/              # Configurações do Cursor
+├── .venv/                # Ambiente virtual Python
+├── node_modules/         # Dependências npm
+├── index.html            # Template HTML
+├── package.json          # Configurações npm
+├── package-lock.json     # Lockfile de dependências
+├── tsconfig.json         # Configuração TypeScript
+├── tsconfig.node.json    # Configuração TypeScript para Node
+├── tsconfig.app.json     # Configuração TypeScript para App
+├── vite.config.ts        # Configuração Vite
+├── tailwind.config.js    # Configuração Tailwind
+├── postcss.config.cjs    # Configuração PostCSS
+├── jest.config.cjs       # Configuração Jest
+├── radix-deps.json       # Dependências Radix UI
+├── vacation_optimizer_test.py  # Testes Python
+└── README.md             # Documentação principal
+```
+
+### 7.3 Otimização e Performance
+
+#### 7.3.1 Memoização e Otimização de Renderização
+- Utilizar `useMemo` e `useCallback` para cálculos intensivos
+- Implementar memorização para funções de cálculo complexas
+- Usar `React.memo` para componentes que recebem as mesmas props frequentemente
+- Implementar virtualização para listas longas de recomendações
+- Otimizar re-renderizações com `useRef` quando apropriado
+
+#### 7.3.2 Lazy Loading e Code Splitting
+- Implementar carregamento sob demanda para funcionalidades secundárias
+- Utilizar Suspense/lazy para componentes pesados
+- Dividir rotas em chunks separados
+- Carregar dados de feriados de forma assíncrona
+- Implementar skeleton loading para melhor UX
+
+#### 7.3.3 Cache e Armazenamento
+- Armazenar resultados de cálculos frequentes em cache
+- Implementar estratégia de invalidação inteligente
+- Utilizar localStorage para persistência de preferências
+- Cache de dados de feriados com atualização periódica
+- Implementar service worker para cache de assets estáticos
+
+#### 7.3.4 Otimização de Assets
+- Minificação de CSS e JavaScript
+- Otimização de imagens e ícones
+- Lazy loading de imagens
+- Uso de formatos modernos (WebP)
+- Compressão de assets estáticos
+
+#### 7.3.5 Monitoramento e Métricas
+- Implementar métricas de performance
+- Monitorar tempo de carregamento inicial
+- Acompanhar tempo de interação
+- Medir eficiência de cache
+- Coletar métricas de uso real
+
+### 7.4 Acessibilidade
+
+#### 7.4.1 Navegação e Interação
+- Suporte completo a navegação por teclado
+- Implementação de skip links para conteúdo principal
+- Gerenciamento de foco com `useFocusTrap`
+- Atalhos de teclado para ações comuns
+- Feedback visual e sonoro para interações
+
+#### 7.4.2 Semântica e Estrutura
+- Uso apropriado de elementos HTML semânticos
+- Estrutura de cabeçalhos hierárquica (h1-h6)
+- Listas e tabelas semanticamente corretas
+- Landmarks ARIA para navegação
+- Grupos de conteúdo relacionados
+
+#### 7.4.3 Contraste e Visibilidade
+- Contraste adequado para todos os elementos (WCAG 2.1 AA)
+- Indicadores visuais para estados interativos
+- Textos alternativos para elementos visuais
+- Suporte a modo de alto contraste
+- Tamanhos de fonte ajustáveis
+
+#### 7.4.4 Componentes Acessíveis
+- Implementação de componentes Radix UI
+- Customização de componentes mantendo acessibilidade
+- Estados e propriedades ARIA apropriados
+- Mensagens de erro e sucesso acessíveis
+- Tooltips e popovers acessíveis
+
+#### 7.4.5 Responsividade e Adaptabilidade
+- Layout responsivo para diferentes tamanhos de tela
+- Suporte a zoom do navegador
+- Adaptação para diferentes densidades de pixels
+- Modo de visualização compacto
+- Suporte a diferentes orientações de tela
+
+#### 7.4.6 Testes e Validação
+- Testes automatizados de acessibilidade
+- Validação com ferramentas como axe-core
+- Testes com leitores de tela
+- Verificação de contraste
+- Validação de estrutura semântica
+
+### 7.5 Compatibilidade
+
+#### 7.5.1 Navegadores
+- Suporte para navegadores modernos:
+  - Chrome (últimas 2 versões)
+  - Firefox (últimas 2 versões)
+  - Safari (últimas 2 versões)
+  - Edge (últimas 2 versões)
+- Fallbacks para funcionalidades modernas
+- Polyfills quando necessário
+- Detecção de recursos do navegador
+- Mensagens de aviso para navegadores não suportados
+
+#### 7.5.2 Dispositivos e Telas
+- Design responsivo para diferentes tamanhos de tela
+- Breakpoints otimizados:
+  - Mobile: < 640px
+  - Tablet: 640px - 1024px
+  - Desktop: > 1024px
+- Suporte a diferentes densidades de pixels
+- Adaptação para diferentes orientações
+- Modo de visualização compacto para telas pequenas
+
+#### 7.5.3 Sistemas Operacionais
+- Compatibilidade com Windows, macOS e Linux
+- Suporte a diferentes versões de sistemas operacionais
+- Adaptação para diferentes DPI
+- Suporte a diferentes layouts de teclado
+- Tratamento de diferentes formatos de data
+
+#### 7.5.4 Performance em Diferentes Ambientes
+- Otimização para conexões lentas
+- Modo offline com service worker
+- Cache de recursos estáticos
+- Compressão de dados
+- Lazy loading de recursos pesados
+
+#### 7.5.5 Internacionalização
+- Suporte a diferentes localidades
+- Adaptação para diferentes formatos de data
+- Suporte a diferentes idiomas
+- RTL (Right-to-Left) para idiomas árabes
+- Adaptação para diferentes fusos horários
+
+#### 7.5.6 Testes de Compatibilidade
+- Testes automatizados em diferentes ambientes
+- Testes de responsividade
+- Testes de performance
+- Testes de acessibilidade
+- Testes de usabilidade
+
+## 8. Roadmap e Evoluções Futuras
+
+### 8.1 Versão 1.0 (Atual)
+- Implementação completa das funcionalidades centrais
+- Interface moderna com Tailwind CSS e Radix UI
+- Método híbrido de cálculo de eficiência
+- Suporte a feriados nacionais e judiciais
+- Sistema de recomendações básico
+- Exportação para calendário
+- Testes unitários e de integração
+- Documentação técnica completa
+
+### 8.2 Versão 1.1 (Próxima)
+- Adição de personalização de feriados
+- Melhorias de UX baseadas em feedback inicial
+- Otimizações de performance
+- Refinamento do algoritmo híbrido
+- Implementação de testes E2E
+- Melhorias na acessibilidade
+- Suporte a temas claro/escuro
+- Cache e persistência local
+
+### 8.3 Versão 1.2 (Planejada)
+- Implementação de super otimizações
+- Recomendações híbridas avançadas
+- Visualizações comparativas
+- Histórico de seleções
+- Simulação avançada
+- Suporte a múltiplos idiomas
+- Modo offline completo
+- PWA (Progressive Web App)
+
+### 8.4 Versão 2.0 (Futura)
+- Integração com sistemas de RH judiciais
+- API para compartilhamento de calendários
+- Versão mobile dedicada
+- Funcionalidades colaborativas
+- Análise preditiva de tendências
+- Integração com calendários populares
+- Sistema de notificações
+- Relatórios e análises avançadas
+
+### 8.5 Considerações Técnicas Futuras
+- Migração para arquitetura de microserviços
+- Implementação de CI/CD avançado
+- Monitoramento e telemetria
+- Segurança aprimorada
+- Escalabilidade horizontal
+- Backup e recuperação
+- Logs e auditoria
+- Documentação automatizada
+
+### 8.6 Possibilidades de Expansão
+- Marketplace de extensões
+- Integração com IA para previsões
+- Suporte a diferentes regimes de trabalho
+- Análise de impacto ambiental
+- Gamificação de otimização
+- Comunidade de usuários
+- Sistema de feedback
+- Programa de parceiros
+
+## 9. Glossário Técnico
+
+### 9.1 Termos e Conceitos
+
+#### 9.1.1 Conceitos de Férias
+- **Eficiência**: Medida da otimização do período de férias, calculada com base na proporção de dias não úteis e posicionamento estratégico.
+- **Ponte**: Período de férias que conecta dois ou mais feriados/fins de semana, aproveitando poucos dias úteis para maximizar o descanso.
+- **Fracionamento**: Divisão do período de férias em múltiplos intervalos menores, permitindo maior flexibilidade e potencialmente maior eficiência.
+- **Dias Úteis**: Dias normais de trabalho (segunda a sexta-feira, excluindo feriados).
+- **Dia Desperdiçado**: Dia de férias formal usado em um dia que já seria naturalmente de folga (fim de semana ou feriado).
+- **Método Híbrido**: Abordagem de cálculo de eficiência que aplica penalização exponencial para dias desperdiçados.
+- **ROI (Return on Investment)**: Proporção entre o benefício obtido (dias não úteis) e o custo (dias úteis consumidos).
+- **Posicionamento Estratégico**: Colocação das férias em dias da semana específicos para maximizar a percepção e qualidade do descanso.
+- **Ganho Real**: Porcentagem de dias extras de folga obtidos através de feriados em dias úteis.
+- **Penalização por Desperdício**: Componente do cálculo de eficiência que reduz a pontuação baseado em quantos dias formais de férias são usados em dias não úteis.
+
+#### 9.1.2 Termos Técnicos
+- **Componente**: Unidade reutilizável de interface do usuário em React.
+- **Hook**: Função especial do React que permite usar estado e outros recursos.
+- **Estado**: Dados que podem mudar ao longo do tempo em um componente.
+- **Props**: Dados passados de um componente pai para um filho.
+- **Virtualização**: Técnica de renderização que mostra apenas os itens visíveis.
+- **Memoização**: Cache de resultados de cálculos para melhor performance.
+- **Lazy Loading**: Carregamento sob demanda de recursos.
+- **Service Worker**: Script que roda em background para cache e funcionalidades offline.
+- **PWA**: Progressive Web App, aplicação web com recursos nativos.
+- **TypeScript**: Superset tipado do JavaScript.
+
+#### 9.1.3 Termos de Acessibilidade
+- **ARIA**: Accessible Rich Internet Applications, conjunto de atributos para acessibilidade.
+- **WCAG**: Web Content Accessibility Guidelines, padrões de acessibilidade.
+- **Screen Reader**: Software que lê o conteúdo da tela para usuários com deficiência visual.
+- **Focus Trap**: Técnica que mantém o foco dentro de um componente modal.
+- **Skip Link**: Link que permite pular para o conteúdo principal.
+- **Landmark**: Região semântica da página para navegação.
+- **RTL**: Right-to-Left, direção de texto para idiomas árabes.
+- **High Contrast**: Modo de visualização com contraste aumentado.
+- **Keyboard Navigation**: Navegação usando apenas o teclado.
+- **Semantic HTML**: Uso apropriado de elementos HTML com significado.
+
+#### 9.1.4 Termos de Performance
+- **Bundle**: Arquivo JavaScript compilado com todo o código da aplicação.
+- **Chunk**: Parte do bundle que pode ser carregada separadamente.
+- **Code Splitting**: Divisão do código em chunks menores.
+- **Tree Shaking**: Remoção de código não utilizado no bundle final.
+- **Minification**: Redução do tamanho do código removendo espaços e comentários.
+- **Compression**: Redução do tamanho dos arquivos para transferência.
+- **Cache**: Armazenamento temporário de recursos.
+- **Lighthouse**: Ferramenta de análise de performance do Google.
+- **Core Web Vitals**: Métricas de performance essenciais do Google.
+- **Performance Budget**: Limites definidos para métricas de performance.
+
+#### 9.1.5 Termos de Desenvolvimento
+- **CI/CD**: Continuous Integration/Continuous Deployment.
+- **ESLint**: Ferramenta de análise estática de código.
+- **Prettier**: Formatador de código automático.
+- **TypeScript**: Linguagem de programação tipada.
+- **Vite**: Build tool moderno para desenvolvimento web.
+- **Tailwind CSS**: Framework de CSS utilitário.
+- **Radix UI**: Biblioteca de componentes acessíveis.
+- **Jest**: Framework de testes JavaScript.
+- **Testing Library**: Biblioteca para testes de componentes.
+- **Git**: Sistema de controle de versão.
+
+## 10. Considerações Legais
+
+### 10.1 Resolução CJF
+- A aplicação considera a Resolução nº 940/2025 do CJF
+- Período mínimo de férias de 5 dias
+- Respeito às regras de fracionamento
+- Consideração de períodos especiais
+- Adaptação a atualizações da resolução
+
+### 10.2 Recesso Judicial
+- Reconhecimento do recesso judicial (20/12 a 06/01)
+- Evita recomendações sobrepostas
+- Consideração de prorrogações excepcionais
+- Adaptação a mudanças no calendário
+- Tratamento especial para períodos de recesso
+
+### 10.3 Políticas de Férias
+- Auxiliar para planejamento, não substituto de normas
+- Consulta às regras específicas de cada jurisdição
+- Adaptação a diferentes regimes de trabalho
+- Consideração de acordos coletivos
+- Respeito a restrições locais
+
+### 10.4 Proteção de Dados
+- Conformidade com LGPD
+- Tratamento seguro de dados pessoais
+- Política de privacidade clara
+- Consentimento do usuário
+- Direitos de acesso e retificação
+
+### 10.5 Propriedade Intelectual
+- Proteção do código fonte
+- Licenciamento apropriado
+- Respeito a direitos de terceiros
+- Documentação de contribuições
+- Política de uso de software
+
+### 10.6 Responsabilidade
+- Termos de uso claros
+- Limitação de responsabilidade
+- Isenção de garantias
+- Política de suporte
+- Procedimentos de resolução de conflitos
+
+### 10.7 Conformidade Regulatória
+- Atualização com mudanças legislativas
+- Registro de versões e alterações
+- Documentação de conformidade
+- Auditorias periódicas
+- Procedimentos de atualização
+
+### 10.8 Ética e Transparência
+- Divulgação clara de funcionalidades
+- Transparência nos cálculos
+- Explicação das recomendações
+- Feedback do usuário
+- Melhorias contínuas
+
+## 11. Considerações sobre o Método Híbrido
+
+### 11.1 Justificativa para a Implementação
+
+#### 11.1.1 Problema Original
+- Diferenciação insuficiente entre períodos com diferentes quantidades de dias não úteis
+- Diferença mínima (aproximadamente 0.01) entre períodos com um e dois dias desperdiçados
+- Não refletia adequadamente o custo de oportunidade real dos dias formais de férias
+- Necessidade de uma abordagem mais intuitiva e precisa
+
+#### 11.1.2 Solução Proposta
+- Penalização inicial mais substancial (0.35) para o primeiro dia não útil
+- Fator de crescimento exponencial (1.8) para cada dia adicional
+- Manutenção da escala e lógica do sistema original
+- Criação de diferenciação clara entre níveis de desperdício
+- Preservação da valorização para períodos estrategicamente posicionados
+
+### 11.2 Implementação Técnica
+
+#### 11.2.1 Componentes do Algoritmo
+- Cálculo base de eficiência
+- Penalização por desperdício
+- Bonificações estratégicas
+- Ajustes por feriados
+- Normalização final
+
+#### 11.2.2 Parâmetros do Método
+- Penalização inicial: 0.35
+- Fator de crescimento: 1.8
+- Limites de classificação:
+  - Alta: ≥ 1.4
+  - Média: ≥ 1.2
+  - Baixa: < 1.2
+
+#### 11.2.3 Otimizações
+- Cache de resultados frequentes
+- Pré-cálculo de valores comuns
+- Otimização de loops
+- Memoização de funções
+- Paralelização quando possível
+
+### 11.3 Validação e Testes
+
+#### 11.3.1 Testes Unitários
+- Cálculos básicos de eficiência
+- Penalizações por desperdício
+- Bonificações estratégicas
+- Casos de borda
+- Validação de parâmetros
+
+#### 11.3.2 Testes de Integração
+- Interação com calendário
+- Processamento de feriados
+- Geração de recomendações
+- Exportação de dados
+- Cache e persistência
+
+#### 11.3.3 Testes de Performance
+- Tempo de resposta
+- Uso de memória
+- Escalabilidade
+- Concorrência
+- Carga de dados
+
+### 11.4 Análise de Resultados
+
+#### 11.4.1 Métricas de Avaliação
+- Precisão das recomendações
+- Satisfação do usuário
+- Tempo de processamento
+- Uso de recursos
+- Escalabilidade
+
+#### 11.4.2 Comparação com Métodos Anteriores
+- Algoritmo original
+- Abordagens alternativas
+- Métricas comparativas
+- Vantagens e desvantagens
+- Casos de uso específicos
+
+#### 11.4.3 Feedback e Melhorias
+- Coleta de feedback
+- Análise de uso
+- Identificação de problemas
+- Propostas de melhoria
+- Implementação de ajustes
+
+### 11.5 Considerações Práticas
+
+#### 11.5.1 Uso em Produção
+- Monitoramento contínuo
+- Logs e métricas
+- Alertas e notificações
+- Backup e recuperação
+- Manutenção
+
+#### 11.5.2 Documentação
+- Guias de uso
+- Exemplos práticos
+- Casos de estudo
+- FAQ
+- Suporte
+
+#### 11.5.3 Evolução Futura
+- Possíveis melhorias
+- Novas funcionalidades
+- Integrações
+- Escalabilidade
+- Manutenção
+
+### 11.6 Conclusão
+
+O método híbrido de cálculo de eficiência representa uma evolução significativa na abordagem de otimização de períodos de férias. Através de sua implementação técnica robusta, validação abrangente e considerações práticas detalhadas, o sistema oferece uma solução mais precisa e intuitiva para o problema de otimização de férias judiciais.
+
+A combinação de penalização exponencial para dias desperdiçados com bonificações estratégicas e ajustes por feriados resulta em recomendações mais relevantes e úteis para os usuários. A implementação técnica otimizada e os testes abrangentes garantem a confiabilidade e performance do sistema em produção.
+
+O feedback contínuo dos usuários e a análise dos resultados permitem melhorias contínuas no método, mantendo-o alinhado com as necessidades reais dos profissionais do judiciário. A documentação detalhada e o suporte técnico garantem uma experiência positiva para os usuários e facilitam a manutenção e evolução do sistema.
+
+### 11.7 Importância da Adjacência com Feriados
+
+O fator mais importante para a otimização de férias judiciais é a criação de blocos contínuos de descanso através da adjacência direta entre o período de férias e feriados.
+
+#### 11.7.1 Princípio Fundamental
+- A adjacência direta entre férias e feriados (sem dias úteis intermediários) maximiza o tempo total de descanso
+- Um período de férias que termina no dia imediatamente anterior a um feriado cria um bloco contínuo único
+- Esta estratégia otimiza o uso de dias formais de férias ao criar períodos ininterruptos de descanso
+
+#### 11.7.2 Benefícios Quantificáveis
+- Aumento significativo no total de dias consecutivos de descanso
+- Maior sensação subjetiva de período de descanso prolongado
+- Eficiência superior em termos de "dias de descanso por dia formal de férias"
+
+#### 11.7.3 Implementação Técnica
+- Bônus significativo (+0.8) no cálculo de eficiência para adjacência direta
+- Priorização máxima nas recomendações automáticas
+- Visualização clara do "bloco contínuo total" para comparação de períodos

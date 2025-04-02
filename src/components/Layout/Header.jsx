@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CalendarDays, ArrowRight, HelpCircle, Calendar } from 'lucide-react';
-import { HolidayModal } from '../Holidays/HolidayModal';
+import HolidayModal from '../Holidays/HolidayModal';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, } from "@/components/ui/dialog";
 const Header = ({ onHolidaysUpdated }) => {

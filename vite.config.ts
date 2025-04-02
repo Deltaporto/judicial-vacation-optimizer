@@ -11,27 +11,19 @@ export default defineConfig(({ mode }) => ({
   base: '/judicial-vacation-optimizer/',
   plugins: [
     react({
-      include: "**/*.{jsx,js,tsx,ts}",  // Processar JSX em arquivos .js também
+      include: "**/*.{jsx,js,ts,tsx}",
       babel: {
-        presets: [
-          ["@babel/preset-react", {
-            "runtime": "automatic"
-          }]
-        ]
-      }
+        plugins: [
+          // Isso permite JSX em arquivos .js
+          ["@babel/plugin-transform-react-jsx", { runtime: "automatic" }]
+        ],
+      },
     }),
-  ],
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
     extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json']
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      loader: {
-        '.js': 'jsx',
-      },
-    },
   },
 }));
