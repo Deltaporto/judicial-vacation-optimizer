@@ -36,8 +36,10 @@ jobs:
         with:
           node-version: 18
           cache: 'npm'
-      - name: Install dependencies
-        run: npm ci
+      - name: Clean install
+        run: |
+        rm -f package-lock.json
+        npm install
       - name: Build
         run: npm run build
       - name: Setup Pages
