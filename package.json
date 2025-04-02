@@ -10,7 +10,9 @@
     "test:impact": "tsx src/tests/impactTests.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:super": "tsx src/tests/superOptimizationTest.ts"
+    "test:super": "tsx src/tests/superOptimizationTest.ts",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist -f"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.1.4",
