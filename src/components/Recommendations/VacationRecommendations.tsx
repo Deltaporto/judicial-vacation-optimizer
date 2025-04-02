@@ -477,7 +477,7 @@ const VacationRecommendations = forwardRef<
       let description = '';
 
       if (type === 'bridge' || type === 'super_bridge') {
-        title = `Emenda Estratégica (${workDays}d)`;
+        title = `Emenda`;
         description = `Aproveite ${metrics.totalRestDays} dias de descanso usando apenas ${workDays} ${workDays === 1 ? 'dia' : 'dias'} de ${term} entre ${formatDate(startDate)} e ${formatDate(endDate)}. Ideal para conectar feriados ou fins de semana.`;
       } else {
         title = recommendation.title;
