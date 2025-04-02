@@ -239,10 +239,33 @@ const EfficiencyCalculator = ({ vacationPeriod, fractionedPeriods = [], isFracti
           <div className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={data} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={2} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={true}>
-                  {data.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color}/>))}
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={40}
+                  outerRadius={65}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={null}
+                  labelLine={false}
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
                 </Pie>
-                <Legend verticalAlign="bottom" height={36}/>
+                <Legend 
+                  layout="vertical" 
+                  verticalAlign="middle" 
+                  align="right"
+                  wrapperStyle={{
+                    paddingLeft: '25px', 
+                    marginRight: '10px',
+                    lineHeight: '24px'
+                  }}
+                  iconSize={10}
+                  iconType="circle"
+                />
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>

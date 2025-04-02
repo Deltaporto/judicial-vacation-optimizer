@@ -312,17 +312,28 @@ const EfficiencyCalculator: React.FC<EfficiencyCalculatorProps> = ({
                   cx="50%"
                   cy="50%"
                   innerRadius={40}
-                  outerRadius={70}
+                  outerRadius={65}
                   paddingAngle={2}
                   dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={true}
+                  label={null}
+                  labelLine={false}
                 >
                   {data.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Legend verticalAlign="bottom" height={36} />
+                <Legend 
+                  layout="vertical" 
+                  verticalAlign="middle" 
+                  align="right"
+                  wrapperStyle={{ 
+                    paddingLeft: '25px',  // Aumentado para maior espaçamento 
+                    marginRight: '10px',  // Margem à direita
+                    lineHeight: '24px'    // Espaçamento entre itens da legenda
+                  }}
+                  iconSize={10}           // Tamanho reduzido dos ícones da legenda
+                  iconType="circle"       // Formato circular para os ícones (combina melhor com o gráfico)
+                />
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
