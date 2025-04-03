@@ -373,7 +373,7 @@ const VacationRecommendations = forwardRef(({ vacationPeriod, onRecommendationSe
       </Card>);
     };
     // Main render
-    return (<div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-scale-in" data-vacation-recommendations>
+    return (<div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden" data-vacation-recommendations>
       <div className="p-6">
         <RecommendationsHeader />
         

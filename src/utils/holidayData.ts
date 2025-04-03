@@ -99,76 +99,6 @@ export const recessPeriods: Holiday[] = generateRecessPeriods(2024, 2027);
 // Estado para armazenar feriados personalizados/importados
 let customHolidays: Holiday[] = [];
 
-// Função para carregar os feriados municipais do Rio de Janeiro por padrão
-const loadDefaultMunicipalHolidays = () => {
-  const currentYear = new Date().getFullYear();
-  const years = [currentYear, currentYear + 1, currentYear + 2];
-  
-  const rjHolidays: Holiday[] = [];
-  
-  years.forEach(year => {
-    // Feriados municipais do Rio de Janeiro
-    rjHolidays.push(
-      { date: `${year}-01-20`, name: 'Dia de São Sebastião', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' },
-      { date: `${year}-04-23`, name: 'Dia de São Jorge', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' },
-      { date: `${year}-11-20`, name: 'Dia da Consciência Negra', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' }
-    );
-  });
-  
-  // Adicionar eventos específicos
-  if (years.includes(2025)) {
-    rjHolidays.push(
-      { date: '2025-02-28', name: 'Sexta-feira de Carnaval (apenas na Capital)', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' }
-    );
-  }
-  
-  // Atualizar os feriados personalizados com os feriados municipais do Rio
-  updateCustomHolidays(rjHolidays);
-};
-
-// Carregar os feriados municipais do Rio de Janeiro por padrão
-loadDefaultMunicipalHolidays();
-
-// All holidays combined
-export const getAllHolidays = (): Holiday[] => {
-  const nacionais = [...nationalHolidays];
-  const judiciais = [...judicialHolidays];
-  const recesso = [...recessPeriods];
-  const custom = [...customHolidays];
-  
-  // Apenas para depuração, se necessário
-  // console.log(`[getAllHolidays] Feriados nacionais: ${nacionais.length}`);
-  // console.log(`[getAllHolidays] Feriados judiciais: ${judiciais.length}`);
-  // console.log(`[getAllHolidays] Períodos de recesso: ${recesso.length}`);
-  // console.log(`[getAllHolidays] Feriados personalizados: ${custom.length}`);
-  
-  // Verificar explicitamente por feriados municipais
-  const municipalHolidays = custom.filter(h => 
-    h.abrangencia && h.abrangencia.toLowerCase().includes('municipal')
-  );
-  // console.log(`[getAllHolidays] Feriados municipais (em personalizados): ${municipalHolidays.length}`);
-  
-  // Se não houver feriados municipais, isso pode indicar um problema
-  if (municipalHolidays.length === 0 && custom.length > 0) {
-    console.log("[getAllHolidays] AVISO: Não foram encontrados feriados municipais entre os personalizados!");
-  }
-  
-  const allHolidays = [
-    ...nacionais, 
-    ...judiciais, 
-    ...recesso,
-    ...custom
-  ];
-  
-  // console.log(`[getAllHolidays] Total de feriados: ${allHolidays.length}`);
-  return allHolidays;
-};
-
-// Método para obter apenas os feriados personalizados (para debugging)
-export const getCustomHolidays = (): Holiday[] => {
-  return [...customHolidays];
-};
-
 // Método para atualizar os feriados personalizados
 export const updateCustomHolidays = (holidays: Holiday[]): void => {
   console.log("Atualizando feriados personalizados:", holidays);
@@ -212,6 +142,41 @@ export const updateCustomHolidays = (holidays: Holiday[]): void => {
   console.log(`Total de feriados personalizados após atualização: ${customHolidays.length}`);
 };
 
+// Função para carregar os feriados municipais do Rio de Janeiro por padrão
+const loadDefaultMunicipalHolidays = () => {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear, currentYear + 1, currentYear + 2];
+  
+  const rjHolidays: Holiday[] = [];
+  
+  years.forEach(year => {
+    // Feriados municipais do Rio de Janeiro
+    rjHolidays.push(
+      { date: `${year}-01-20`, name: 'Dia de São Sebastião', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' },
+      { date: `${year}-04-23`, name: 'Dia de São Jorge', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' },
+      { date: `${year}-11-20`, name: 'Dia da Consciência Negra', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' }
+    );
+  });
+  
+  // Adicionar eventos específicos
+  if (years.includes(2025)) {
+    rjHolidays.push(
+      { date: '2025-02-28', name: 'Sexta-feira de Carnaval (apenas na Capital)', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' }
+    );
+  }
+  
+  // Atualizar os feriados personalizados com os feriados municipais do Rio
+  updateCustomHolidays(rjHolidays);
+};
+
+// Carregar os feriados municipais do Rio de Janeiro por padrão
+loadDefaultMunicipalHolidays();
+
+// Método para obter apenas os feriados personalizados (para debugging)
+export const getCustomHolidays = (): Holiday[] => {
+  return [...customHolidays];
+};
+
 // Método para adicionar um novo feriado
 export const addCustomHoliday = (holiday: Holiday): void => {
   // Verifica se o feriado já existe
@@ -231,6 +196,41 @@ export const addCustomHoliday = (holiday: Holiday): void => {
 // Método para remover um feriado personalizado
 export const removeCustomHoliday = (date: string): void => {
   customHolidays = customHolidays.filter(h => h.date !== date);
+};
+
+// All holidays combined
+export const getAllHolidays = (): Holiday[] => {
+  const nacionais = [...nationalHolidays];
+  const judiciais = [...judicialHolidays];
+  const recesso = [...recessPeriods];
+  const custom = [...customHolidays];
+  
+  // Apenas para depuração, se necessário
+  // console.log(`[getAllHolidays] Feriados nacionais: ${nacionais.length}`);
+  // console.log(`[getAllHolidays] Feriados judiciais: ${judiciais.length}`);
+  // console.log(`[getAllHolidays] Períodos de recesso: ${recesso.length}`);
+  // console.log(`[getAllHolidays] Feriados personalizados: ${custom.length}`);
+  
+  // Verificar explicitamente por feriados municipais
+  const municipalHolidays = custom.filter(h => 
+    h.abrangencia && h.abrangencia.toLowerCase().includes('municipal')
+  );
+  // console.log(`[getAllHolidays] Feriados municipais (em personalizados): ${municipalHolidays.length}`);
+  
+  // Se não houver feriados municipais, isso pode indicar um problema
+  if (municipalHolidays.length === 0 && custom.length > 0) {
+    console.log("[getAllHolidays] AVISO: Não foram encontrados feriados municipais entre os personalizados!");
+  }
+  
+  const allHolidays = [
+    ...nacionais, 
+    ...judiciais, 
+    ...recesso,
+    ...custom
+  ];
+  
+  // console.log(`[getAllHolidays] Total de feriados: ${allHolidays.length}`);
+  return allHolidays;
 };
 
 // Function to check if a date is a holiday

@@ -221,7 +221,7 @@ const CalendarView = ({ selectedRange, secondaryRange, onDateSelect, onDateRange
             })}
       </div>);
     };
-    return (<div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-scale-in">
+    return (<div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden w-full">
       {/* Calendar header */}
       <div className="p-4 border-b border-gray-100">
         {/* Título e botões de navegação do mês em uma linha */}

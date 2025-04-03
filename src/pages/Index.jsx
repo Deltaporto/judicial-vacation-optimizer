@@ -342,9 +342,9 @@ const Index = () => {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {/* Left column - Calendar */}
-          <div className="lg:col-span-2">
+          <div className="md:col-span-2">
             {/* Usar key para forçar a renderização do CalendarView */}
             <CalendarView key={calendarKey} selectedRange={selectedRange} secondaryRange={splitPeriods.length > 0 ? splitPeriods[0] : null} onDateSelect={handleDateSelect} onDateRangeSelect={handleDateRangeSelect} onOpenHolidayModal={handleOpenHolidayModal} onClearSelection={handleClearSelection}/>
             
@@ -397,7 +397,7 @@ const Index = () => {
           </div>
           
           {/* Right column - Recommendations */}
-          <div className="lg:col-span-1">
+          <div className="md:col-span-1">
             <VacationRecommendations vacationPeriod={isRangeComplete ? vacationPeriod : null} onRecommendationSelect={handleRecommendationSelect} ref={vacationRecommendationsRef}/>
           </div>
         </div>
