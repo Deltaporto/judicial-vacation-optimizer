@@ -250,7 +250,7 @@ const CalendarView = ({ selectedRange, secondaryRange, onDateSelect, onDateRange
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="outline" size="sm" onClick={() => alert("Alternando entre feriados do RJ e ES - Funcionalidade em implementação")} className="text-indigo-600 border-indigo-200 hover:bg-indigo-50">
-                  <span>Feriados: RJ</span>
+                  <span>Feriados Estaduais: RJ</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right" className="max-w-[250px] z-50">

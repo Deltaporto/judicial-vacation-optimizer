@@ -327,23 +327,43 @@ const CalendarView: React.FC<CalendarViewProps> = ({
         {/* Botões de funcionalidades em uma linha separada */}
         <div className="flex items-center justify-between">
           {/* Botão para alternar feriados estaduais (lado esquerdo) */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => alert("Alternando entre feriados do RJ e ES - Funcionalidade em implementação")}
-                  className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                >
-                  <span>Feriados: RJ</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="max-w-[250px] z-50">
-                Alternar entre feriados estaduais do RJ e ES
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="flex items-center space-x-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => alert("Alternando entre feriados do RJ e ES - Funcionalidade em implementação")}
+                    className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                  >
+                    <span>Feriados Estaduais: RJ</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[250px] z-50">
+                  Alternar entre feriados estaduais do RJ e ES
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => alert("Alternando feriados municipais - Funcionalidade em implementação")}
+                    className="text-green-600 border-green-200 hover:bg-green-50"
+                  >
+                    <span>Feriados Municipais: Rio de Janeiro</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[250px] z-50">
+                  Alternar entre feriados municipais
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           
           <div className="flex items-center space-x-2">
             {/* Botão de feriados no meio */}

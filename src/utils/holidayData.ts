@@ -99,6 +99,36 @@ export const recessPeriods: Holiday[] = generateRecessPeriods(2024, 2027);
 // Estado para armazenar feriados personalizados/importados
 let customHolidays: Holiday[] = [];
 
+// Função para carregar os feriados municipais do Rio de Janeiro por padrão
+const loadDefaultMunicipalHolidays = () => {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear, currentYear + 1, currentYear + 2];
+  
+  const rjHolidays: Holiday[] = [];
+  
+  years.forEach(year => {
+    // Feriados municipais do Rio de Janeiro
+    rjHolidays.push(
+      { date: `${year}-01-20`, name: 'Dia de São Sebastião', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' },
+      { date: `${year}-04-23`, name: 'Dia de São Jorge', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' },
+      { date: `${year}-11-20`, name: 'Dia da Consciência Negra', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' }
+    );
+  });
+  
+  // Adicionar eventos específicos
+  if (years.includes(2025)) {
+    rjHolidays.push(
+      { date: '2025-02-28', name: 'Sexta-feira de Carnaval (apenas na Capital)', type: 'judicial', abrangencia: 'Municipal (Rio de Janeiro)' }
+    );
+  }
+  
+  // Atualizar os feriados personalizados com os feriados municipais do Rio
+  updateCustomHolidays(rjHolidays);
+};
+
+// Carregar os feriados municipais do Rio de Janeiro por padrão
+loadDefaultMunicipalHolidays();
+
 // All holidays combined
 export const getAllHolidays = (): Holiday[] => {
   const nacionais = [...nationalHolidays];
