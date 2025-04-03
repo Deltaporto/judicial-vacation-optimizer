@@ -16,7 +16,7 @@ const HolidayManagerPage: React.FC = () => {
         </div>
       </header>
       
-      <main className="container mx-auto py-8">
+      <main className="container mx-auto py-8 pt-24">
         <HolidayManagerComponent
           onHolidaysUpdated={() => {
             // Recarregar dados do aplicativo se necessário

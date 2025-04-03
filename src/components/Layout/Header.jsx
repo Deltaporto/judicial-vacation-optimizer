@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 const Header = ({ onHolidaysUpdated }) => {
     const [showHolidayModal, setShowHolidayModal] = useState(false);
     return (<>
-      <header className="w-full bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-4 px-6 fixed top-0 left-0 z-50 transition-all duration-300">
+      <header className="w-full bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-4 px-6 top-0 left-0 z-50 transition-all duration-300">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center text-white">
@@ -21,9 +21,6 @@ const Header = ({ onHolidaysUpdated }) => {
           </div>
           
           <div className="flex items-center space-x-4">
-            <span className="text-xs px-3 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-100">
-              CJF Resoluções nº 764/2022 e nº 940/2025
-            </span>
             
             <Button variant="ghost" size="sm" onClick={() => setShowHolidayModal(true)} className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900 transition-colors">
               <Calendar className="h-4 w-4"/>

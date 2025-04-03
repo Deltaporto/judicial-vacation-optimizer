@@ -323,15 +323,12 @@ const Index = () => {
       {/* Modal de feriados */}
       <HolidayModal open={showHolidayModal} onOpenChange={setShowHolidayModal} onHolidaysUpdated={handleHolidaysUpdated}/>
       
-      <main className="flex-grow container mx-auto py-8 px-4 sm:px-6">
+      <main className="flex-grow container mx-auto py-8 px-4 sm:px-6 pt-24">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">
             Planejador de Férias Judiciais
           </h1>
           
-          <Button variant="outline" onClick={handleRunTests} className="text-sm">
-            Testar Novas Estratégias de Otimização
-          </Button>
         </div>
         
         <p className="text-lg text-gray-600 mb-4">
